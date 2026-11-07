@@ -31,18 +31,23 @@ namespace Mafesoft.PlainTextReport
 {
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.Linq;
     using System.Numerics;
     using System.Text;
+    using System.Text.RegularExpressions;
 
     /// <summary>
-    /// Renders the report as lines of text.
+    /// Renders the report as pages of text.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     internal sealed class PlainTextReportRenderer<T>
     {
         private const char Ellipsis = '…';
+        private const string DefaultDateFormat = "yyyy-MM-dd";
         private static readonly char[] LayoutBreakers = new[] { '\r', '\n', '\t' };
+        private static readonly string[] NewLines = new[] { "\r\n", "\n" };
+        private static readonly Regex Placeholder = new Regex(@"\{(page|pages|title|date)(?::([^}]*))?\}", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private readonly PlainTextReportOptions<T> options;
         private readonly PlainTextReportColumn[] columns;
@@ -60,45 +65,128 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Renders the values
+        /// Renders the values as lines
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
         public string[] Render(IEnumerable<T> values)
         {
+            return RenderPages(values).SelectMany(page => page.Lines).ToArray();
+        }
+
+        /// <summary>
+        /// Renders the values as pages. Without page settings the report is a single page.
+        /// </summary>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public PlainTextReportPage[] RenderPages(IEnumerable<T> values)
+        {
+            var page = options.Page;
+            var maxWidth = options.Width;
+            if (page != null)
+            {
+                ValidatePage(page);
+                maxWidth = maxWidth > 0 ? Math.Min(maxWidth, page.PrintableWidth) : page.PrintableWidth;
+            }
+
             var rows = (values ?? Enumerable.Empty<T>()).Select(GetCells).ToList();
-            var widths = GetColumnWidths(rows);
+            var widths = GetColumnWidths(rows, maxWidth);
             var separator = options.ShowColumnSeparator ? $" {options.ColumnSeparator} " : " ";
             var tableWidth = columns.Length == 0 ? 0 : widths.Sum() + separator.Length * (columns.Length - 1);
 
-            var lines = new List<string>(rows.Count + 5);
-            var builder = new StringBuilder(tableWidth);
+            var title = GetTitleLines(tableWidth, maxWidth);
+            var columnHeader = GetColumnHeaderLines(widths, separator);
+            var body = GetRowLines(rows, widths, separator);
 
-            AddTitle(lines, tableWidth);
-
-            if (columns.Length == 0)
+            if (page == null)
             {
-                return lines.ToArray();
+                var lines = new List<string>(title.Count + columnHeader.Count + body.Count);
+                lines.AddRange(title);
+                lines.AddRange(columnHeader);
+                lines.AddRange(body);
+                return new[] { new PlainTextReportPage(1, 1, lines.ToArray()) };
             }
 
-            if (options.ShowHeader)
-            {
-                builder.Clear();
-                for (int i = 0; i < columns.Length; i++)
-                {
-                    if (i > 0) builder.Append(separator);
-                    AppendCell(builder, columns[i].ColumnName ?? string.Empty, widths[i], GetHeaderAlignment(columns[i]));
-                }
-                lines.Add(builder.ToString().TrimEnd());
+            return Paginate(page, title, columnHeader, body);
+        }
 
-                if (options.ShowHeaderSeparator)
+        #region Table
+
+        /// <summary>
+        /// Returns the title lines, centered on the report width, followed by an empty line
+        /// </summary>
+        private List<string> GetTitleLines(int tableWidth, int maxWidth)
+        {
+            var lines = new List<string>();
+            if (!options.ShowTitle)
+            {
+                return lines;
+            }
+
+            var titleLines = options.IsMultiLineTitle
+                ? options.MultiLineTitle
+                : string.IsNullOrEmpty(options.Title) ? new string[0] : options.Title.Split(NewLines, StringSplitOptions.None);
+
+            if (titleLines.Length == 0)
+            {
+                return lines;
+            }
+
+            var width = tableWidth > 0 ? tableWidth : maxWidth;
+            foreach (var titleLine in titleLines)
+            {
+                var text = Clean(titleLine);
+                if (maxWidth > 0 && text.Length > maxWidth)
                 {
-                    var join = options.ShowColumnSeparator ? $"{options.HeaderSeparator}+{options.HeaderSeparator}" : " ";
-                    lines.Add(string.Join(join, widths.Select(w => new string(options.HeaderSeparator, w))));
+                    text = text.Substring(0, maxWidth);
                 }
+                var padding = Math.Max(0, (width - text.Length) / 2);
+                lines.Add((new string(' ', padding) + text).TrimEnd());
+            }
+            lines.Add(string.Empty);
+            return lines;
+        }
+
+        /// <summary>
+        /// Returns the column header and its separator line
+        /// </summary>
+        private List<string> GetColumnHeaderLines(int[] widths, string separator)
+        {
+            var lines = new List<string>(2);
+            if (columns.Length == 0 || !options.ShowHeader)
+            {
+                return lines;
+            }
+
+            var builder = new StringBuilder();
+            for (int i = 0; i < columns.Length; i++)
+            {
+                if (i > 0) builder.Append(separator);
+                AppendCell(builder, Clean(columns[i].ColumnName), widths[i], GetHeaderAlignment(columns[i]));
+            }
+            lines.Add(builder.ToString().TrimEnd());
+
+            if (options.ShowHeaderSeparator)
+            {
+                var join = options.ShowColumnSeparator ? $"{options.HeaderSeparator}+{options.HeaderSeparator}" : " ";
+                lines.Add(string.Join(join, widths.Select(w => new string(options.HeaderSeparator, w))));
+            }
+            return lines;
+        }
+
+        /// <summary>
+        /// Returns a line for every row
+        /// </summary>
+        private List<string> GetRowLines(List<string[]> rows, int[] widths, string separator)
+        {
+            var lines = new List<string>(rows.Count);
+            if (columns.Length == 0)
+            {
+                return lines;
             }
 
             var alignments = columns.Select(GetAlignment).ToArray();
+            var builder = new StringBuilder();
             foreach (var cells in rows)
             {
                 builder.Clear();
@@ -109,50 +197,12 @@ namespace Mafesoft.PlainTextReport
                 }
                 lines.Add(builder.ToString().TrimEnd());
             }
-
-            return lines.ToArray();
-        }
-
-        /// <summary>
-        /// Adds the title lines, centered on the report width
-        /// </summary>
-        /// <param name="lines"></param>
-        /// <param name="tableWidth"></param>
-        private void AddTitle(List<string> lines, int tableWidth)
-        {
-            if (!options.ShowTitle)
-            {
-                return;
-            }
-
-            var titleLines = options.IsMultiLineTitle
-                ? options.MultiLineTitle
-                : string.IsNullOrEmpty(options.Title) ? new string[0] : options.Title.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-
-            if (titleLines.Length == 0)
-            {
-                return;
-            }
-
-            var width = tableWidth > 0 ? tableWidth : options.Width;
-            foreach (var titleLine in titleLines)
-            {
-                var text = Clean(titleLine);
-                if (options.Width > 0 && text.Length > options.Width)
-                {
-                    text = text.Substring(0, options.Width);
-                }
-                var padding = Math.Max(0, (width - text.Length) / 2);
-                lines.Add((new string(' ', padding) + text).TrimEnd());
-            }
-            lines.Add(string.Empty);
+            return lines;
         }
 
         /// <summary>
         /// Returns the cells of a row
         /// </summary>
-        /// <param name="model"></param>
-        /// <returns></returns>
         private string[] GetCells(T model)
         {
             var cells = new string[columns.Length];
@@ -166,11 +216,9 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the width of every column, fitted in the report width
+        /// Returns the width of every column, fitted in the maximum width
         /// </summary>
-        /// <param name="rows"></param>
-        /// <returns></returns>
-        private int[] GetColumnWidths(List<string[]> rows)
+        private int[] GetColumnWidths(List<string[]> rows, int maxWidth)
         {
             var widths = new int[columns.Length];
             for (int i = 0; i < columns.Length; i++)
@@ -189,10 +237,11 @@ namespace Mafesoft.PlainTextReport
                 widths[i] = Math.Max(1, width);
             }
 
-            if (options.Width > 0 && columns.Length > 0)
+            if (maxWidth > 0 && columns.Length > 0)
             {
                 var separatorLength = options.ShowColumnSeparator ? 3 : 1;
-                var excess = widths.Sum() + separatorLength * (columns.Length - 1) - options.Width;
+                var excess = widths.Sum() + separatorLength * (columns.Length - 1) - maxWidth;
+
                 // shrink the automatic text columns first, then the automatic numeric ones, then the fixed ones
                 for (int tier = 0; tier < 3 && excess > 0; tier++)
                 {
@@ -263,6 +312,189 @@ namespace Mafesoft.PlainTextReport
                     break;
             }
         }
+
+        #endregion
+
+        #region Pages
+
+        /// <summary>
+        /// Checks that the page settings can hold a report
+        /// </summary>
+        private static void ValidatePage(PlainTextReportPageSettings page)
+        {
+            if (page.PaperSize == null) throw new InvalidOperationException("The page settings must have a paper size.");
+            if (page.CharactersPerInch <= 0) throw new InvalidOperationException("CharactersPerInch must be greater than zero.");
+            if (page.LinesPerInch <= 0) throw new InvalidOperationException("LinesPerInch must be greater than zero.");
+            if (page.MarginLeft < 0 || page.MarginRight < 0 || page.MarginTop < 0 || page.MarginBottom < 0)
+            {
+                throw new InvalidOperationException("The page margins cannot be negative.");
+            }
+            if (page.PrintableWidth < 1 || page.PrintableHeight < 1)
+            {
+                throw new InvalidOperationException($"The page {page.PaperSize} has no printable area with these margins.");
+            }
+        }
+
+        /// <summary>
+        /// Splits the report in pages, each one with header, body and footer and exactly the page height
+        /// </summary>
+        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string> body)
+        {
+            var header = page.Header ?? new PlainTextReportPageBand();
+            var footer = page.Footer ?? new PlainTextReportPageBand();
+            var capacity = page.PrintableHeight - GetBandHeight(header) - GetBandHeight(footer);
+            if (capacity < 1)
+            {
+                throw new InvalidOperationException($"The page {page.PaperSize} has no room for the body: reduce the header, the footer or the margins.");
+            }
+
+            // split the body in pages
+            var bodies = new List<List<string>>();
+            var next = 0;
+            do
+            {
+                var first = bodies.Count == 0;
+                var lines = new List<string>(capacity);
+                if (first) lines.AddRange(title);
+                if (first || page.RepeatColumnHeader) lines.AddRange(columnHeader);
+
+                if (lines.Count > capacity || (!first && lines.Count == capacity && next < body.Count))
+                {
+                    throw new InvalidOperationException($"The page {page.PaperSize} is too small for the title and the column header.");
+                }
+
+                while (next < body.Count && lines.Count < capacity)
+                {
+                    lines.Add(body[next++]);
+                }
+                bodies.Add(lines);
+            }
+            while (next < body.Count);
+
+            // compose the pages
+            var count = bodies.Count;
+            var date = page.Date ?? DateTime.Now;
+            var titleText = options.IsMultiLineTitle ? string.Join(" ", options.MultiLineTitle) : options.Title ?? string.Empty;
+            var margin = new string(' ', page.MarginLeft);
+            var pages = new PlainTextReportPage[count];
+
+            for (int i = 0; i < count; i++)
+            {
+                var number = i + 1;
+                var lines = new List<string>(page.Height);
+
+                lines.AddRange(Enumerable.Repeat(string.Empty, page.MarginTop));
+
+                if (!header.IsEmpty)
+                {
+                    lines.AddRange(GetBandLines(header, page.PrintableWidth, number, count, date, titleText));
+                    if (header.ShowSeparator) lines.Add(new string(header.SeparatorChar, page.PrintableWidth));
+                }
+
+                lines.AddRange(bodies[i]);
+                lines.AddRange(Enumerable.Repeat(string.Empty, capacity - bodies[i].Count));
+
+                if (!footer.IsEmpty)
+                {
+                    if (footer.ShowSeparator) lines.Add(new string(footer.SeparatorChar, page.PrintableWidth));
+                    lines.AddRange(GetBandLines(footer, page.PrintableWidth, number, count, date, titleText));
+                }
+
+                lines.AddRange(Enumerable.Repeat(string.Empty, page.MarginBottom));
+
+                var pageLines = margin.Length == 0
+                    ? lines.ToArray()
+                    : lines.Select(line => line.Length == 0 ? line : margin + line).ToArray();
+                pages[i] = new PlainTextReportPage(number, count, pageLines);
+            }
+
+            return pages;
+        }
+
+        /// <summary>
+        /// Returns the number of lines of a band, separator included
+        /// </summary>
+        private static int GetBandHeight(PlainTextReportPageBand band)
+        {
+            if (band.IsEmpty)
+            {
+                return 0;
+            }
+            var lines = Math.Max(SplitLines(band.Left).Length, Math.Max(SplitLines(band.Center).Length, SplitLines(band.Right).Length));
+            return lines + (band.ShowSeparator ? 1 : 0);
+        }
+
+        /// <summary>
+        /// Returns the lines of a band, with the placeholders replaced
+        /// </summary>
+        private static List<string> GetBandLines(PlainTextReportPageBand band, int width, int number, int count, DateTime date, string title)
+        {
+            var left = SplitLines(band.Left);
+            var center = SplitLines(band.Center);
+            var right = SplitLines(band.Right);
+            var height = Math.Max(left.Length, Math.Max(center.Length, right.Length));
+
+            var lines = new List<string>(height);
+            for (int i = 0; i < height; i++)
+            {
+                var buffer = Enumerable.Repeat(' ', width).ToArray();
+                var c = Format(i < center.Length ? center[i] : null, number, count, date, title);
+                var l = Format(i < left.Length ? left[i] : null, number, count, date, title);
+                var r = Format(i < right.Length ? right[i] : null, number, count, date, title);
+                Put(buffer, c, (width - Math.Min(c.Length, width)) / 2);
+                Put(buffer, l, 0);
+                Put(buffer, r, width - Math.Min(r.Length, width));
+                lines.Add(new string(buffer).TrimEnd());
+            }
+            return lines;
+        }
+
+        /// <summary>
+        /// Writes the text in the buffer, from start, cutting what exceeds
+        /// </summary>
+        private static void Put(char[] buffer, string text, int start)
+        {
+            for (int i = 0; i < text.Length && start + i < buffer.Length; i++)
+            {
+                buffer[start + i] = text[i];
+            }
+        }
+
+        /// <summary>
+        /// Splits a band text in lines
+        /// </summary>
+        private static string[] SplitLines(string text)
+        {
+            return string.IsNullOrEmpty(text) ? new string[0] : text.Split(NewLines, StringSplitOptions.None);
+        }
+
+        /// <summary>
+        /// Replaces the placeholders {page}, {pages}, {title} and {date}, with an optional format
+        /// </summary>
+        private static string Format(string text, int number, int count, DateTime date, string title)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+
+            var result = Placeholder.Replace(text, match =>
+            {
+                var format = match.Groups[2].Success ? match.Groups[2].Value : null;
+                switch (match.Groups[1].Value.ToLowerInvariant())
+                {
+                    case "page": return number.ToString(format, CultureInfo.InvariantCulture);
+                    case "pages": return count.ToString(format, CultureInfo.InvariantCulture);
+                    case "date": return date.ToString(string.IsNullOrEmpty(format) ? DefaultDateFormat : format, CultureInfo.InvariantCulture);
+                    default: return title;
+                }
+            });
+            return Clean(result);
+        }
+
+        #endregion
+
+        #region Helpers
 
         /// <summary>
         /// Removes line breaks and tabs, which would break the layout
@@ -346,5 +578,7 @@ namespace Mafesoft.PlainTextReport
             }
             throw new InvalidOperationException($"The property '{column.ColumnNameInternal}' of '{typeof(T).Name}' cannot be read.");
         }
+
+        #endregion
     }
 }

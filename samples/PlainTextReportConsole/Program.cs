@@ -36,6 +36,43 @@ var text = report
 
 Console.WriteLine(text);
 
+// Paged report: A4 portrait, with header and footer on every page
+var pagedReport = new PlainTextReport<Model>(options =>
+{
+    options.Title = "Products";
+    options.ShowHeader = true;
+    options.ShowHeaderSeparator = true;
+    options.ShowColumnSeparator = true;
+
+    options.Page = new PlainTextReportPageSettings(PaperSize.A4, PageOrientation.Portrait)
+    {
+        MarginLeft = 4,
+        MarginRight = 4,
+        MarginTop = 2,
+        MarginBottom = 2,
+    };
+    options.Page.Header.Left = "{title}";
+    options.Page.Header.Right = "{date:dd/MM/yyyy}";
+    options.Page.Header.ShowSeparator = true;
+    options.Page.Footer.Center = "Page {page} of {pages}";
+    options.Page.Footer.ShowSeparator = true;
+
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => { });
+    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
+});
+
+var pages = pagedReport
+    .Bind(Enumerable.Range(1, 150).Select(x => new Model { Id = x, Name = $"Product {x}", Price = x * 1.4m, CreatedOn = DateTime.Today }))
+    .GetPagesReport();
+
+foreach (var page in pages)
+{
+    Console.WriteLine(page);
+    Console.WriteLine();
+}
+
 public class Model
 {
     public int Id { get; set; }

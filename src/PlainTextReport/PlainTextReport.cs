@@ -31,6 +31,7 @@ namespace Mafesoft.PlainTextReport
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
 
     /// <summary>
     /// IPlainTextReport interface
@@ -56,6 +57,12 @@ namespace Mafesoft.PlainTextReport
         /// </summary>
         /// <returns></returns>
         string[] GetTextLinesReport();
+
+        /// <summary>
+        /// Generate the report split in pages
+        /// </summary>
+        /// <returns></returns>
+        PlainTextReportPage[] GetPagesReport();
     }
 
     /// <summary>
@@ -109,22 +116,33 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Generate text report
+        /// Generate text report. When the page settings are set, every page after the first one
+        /// starts with <see cref="PlainTextReportPageSettings.PageBreak"/> (form feed by default).
         /// </summary>
         /// <returns></returns>
         public string GetTextReport()
         {
-            var lines = this.GetTextLinesReport();
-            return string.Join(Environment.NewLine, lines);
+            var pages = this.GetPagesReport();
+            var pageBreak = Options.Page?.PageBreak ?? string.Empty;
+            return string.Join(Environment.NewLine + pageBreak, pages.Select(page => page.ToString()));
         }
 
         /// <summary>
-        /// Generate text line report
+        /// Generate text line report. The lines of all the pages, without page breaks.
         /// </summary>
         /// <returns></returns>
         public string[] GetTextLinesReport()
         {
             return new PlainTextReportRenderer<T>(Options).Render(Values);
+        }
+
+        /// <summary>
+        /// Generate the report split in pages. Without page settings the report is a single page.
+        /// </summary>
+        /// <returns></returns>
+        public PlainTextReportPage[] GetPagesReport()
+        {
+            return new PlainTextReportRenderer<T>(Options).RenderPages(Values);
         }
     }
 }

@@ -87,6 +87,11 @@ namespace Mafesoft.PlainTextReport
         /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
         public int Width { get; set; }
+
+        /// <summary>
+        /// Page settings. When set, the report is split in pages with header and footer.
+        /// </summary>
+        public PlainTextReportPageSettings Page { get; set; }
     }
 
     /// <summary>
@@ -143,6 +148,11 @@ namespace Mafesoft.PlainTextReport
         /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
         public int Width { get; set; }
+
+        /// <summary>
+        /// Page settings. When set, the report is split in pages with header and footer.
+        /// </summary>
+        public PlainTextReportPageSettings Page { get; set; }
     }
 
     /// <summary>
