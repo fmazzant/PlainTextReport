@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net5.0;net6.0;net7.0;net8.0;net452;net462;net472;net48</TargetFrameworks>
+    <LangVersion>preview</LangVersion>
+    <NeutralLanguage>en</NeutralLanguage>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <Description>PlainTextReport is a .NET library to generate a plain text report.</Description>
+    <PackageProjectUrl>https://github.com/fmazzant/PlainTextReport</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/fmazzant/PlainTextReport</RepositoryUrl>
+    <PackageTags>PlainTextReport,import,export,c-sharp</PackageTags>
+    <PackageId>Mafesoft.PlainTextReport</PackageId>
+    <Authors>Federico Mazzanti</Authors>
+    <Copyright>Copyright (c) 2024 Federico Mazzanti</Copyright>
+    <AssemblyName>Mafesoft.$(MSBuildProjectName)</AssemblyName>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Product>PlainTextReport</Product>
+    <Version>1.0.0-rc1</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Exceptions\" />
+  </ItemGroup>
+
+</Project>
