@@ -2,9 +2,7 @@ name: Publish PlainTextReport on NuGet
 
 on:
   push:
-    branches: [ main ]
-    paths: [ 'src/**' ]
-  workflow_dispatch:
+    tags: [ 'v*' ]
 
 jobs:
   build:
@@ -18,14 +16,20 @@ jobs:
       with:
         dotnet-version: 8.0.x
 
+    - name: Get version from tag
+      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
     - name: Restore dependencies
-      run: dotnet restore src/PlainTextReport/PlainTextReport.csproj
+      run: dotnet restore src/PlainTextReport.sln
 
     - name: Build
-      run: dotnet build --no-restore -c Release src/PlainTextReport/PlainTextReport.csproj
+      run: dotnet build --no-restore -c Release -p:Version=$VERSION src/PlainTextReport.sln
+
+    - name: Test
+      run: dotnet test --no-build -c Release src/PlainTextReport.sln
 
     - name: Package
-      run: dotnet pack --no-build -c Release -o . src/PlainTextReport/PlainTextReport.csproj
+      run: dotnet pack --no-build -c Release -p:Version=$VERSION -o . src/PlainTextReport/PlainTextReport.csproj
 
     - name: Publish on NuGet
       run: dotnet nuget push ./*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
