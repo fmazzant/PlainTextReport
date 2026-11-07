@@ -27,7 +27,7 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport.Extensions
+namespace Mafesoft.PlainTextReport.Extensions
 {
     using System;
     using System.Linq.Expressions;

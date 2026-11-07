@@ -27,12 +27,12 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport
+namespace Mafesoft.PlainTextReport
 {
     using System;
     using System.Globalization;
     using System.Linq.Expressions;
-    using PlainTextReport.Conversions;
+    using Mafesoft.PlainTextReport.Conversions;
 
     /// <summary>
     /// The column definition.
@@ -144,7 +144,11 @@ namespace PlainTextReport
             /// <returns></returns>
             public string Format(string format, object arg, IFormatProvider formatProvider)
             {
-                return ((IFormattable)arg).ToString(CustomFormat, formatProvider);
+                if (arg is IFormattable formattable)
+                {
+                    return formattable.ToString(CustomFormat, CultureInfo.InvariantCulture);
+                }
+                return arg?.ToString() ?? string.Empty;
             }
         }
 

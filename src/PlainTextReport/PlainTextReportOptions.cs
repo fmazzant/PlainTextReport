@@ -27,12 +27,11 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport
+namespace Mafesoft.PlainTextReport
 {
-    using PlainTextReport.Helpers;
+    using Mafesoft.PlainTextReport.Helpers;
     using System;
     using System.Collections.Concurrent;
-    using System.Reflection;
 
     /// <summary>
     ///  PlainTextReport Options abstract definition
@@ -75,10 +74,19 @@ namespace PlainTextReport
         public bool ShowColumnSeparator { get; set; }
 
         /// <summary>
-        /// Report width
+        /// Character used to separate the columns
+        /// </summary>
+        public char ColumnSeparator { get; set; }
+
+        /// <summary>
+        /// Character used to draw the line below the header
+        /// </summary>
+        public char HeaderSeparator { get; set; }
+
+        /// <summary>
+        /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
         public int Width { get; set; }
-
     }
 
     /// <summary>
@@ -99,7 +107,7 @@ namespace PlainTextReport
         /// <summary>
         /// Returns is report's title is multi-line
         /// </summary>
-        public bool IsMultiLineTitle => this.MultiLineTitle != null;
+        public bool IsMultiLineTitle => this.MultiLineTitle != null && this.MultiLineTitle.Length > 0;
 
         /// <summary>
         /// Show Title
@@ -122,7 +130,17 @@ namespace PlainTextReport
         public bool ShowColumnSeparator { get; set; }
 
         /// <summary>
-        /// Report width
+        /// Character used to separate the columns
+        /// </summary>
+        public char ColumnSeparator { get; set; } = '|';
+
+        /// <summary>
+        /// Character used to draw the line below the header
+        /// </summary>
+        public char HeaderSeparator { get; set; } = '-';
+
+        /// <summary>
+        /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
         public int Width { get; set; }
     }
@@ -137,11 +155,6 @@ namespace PlainTextReport
         /// Columns
         /// </summary>
         public PlainTextReportOptionsColumns<T> Columns { get; internal set; }
-
-        /// <summary>
-        /// Object's properties
-        /// </summary>
-        internal ConcurrentDictionary<string, PropertyInfo> Properties { get; set; }
 
         /// <summary>
         /// Object's faster properties
@@ -164,12 +177,6 @@ namespace PlainTextReport
         private void SetOptionPropertiesFromType(Type type)
         {
             FasterProperties = PropertyHelper<T>.GetPropertiesExpressionTree(type);
-            Properties = new ConcurrentDictionary<string, PropertyInfo>();
-            var properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
-            foreach (var property in properties)
-            {
-                Properties.TryAdd(property.Name, property);
-            }
         }
 
     }

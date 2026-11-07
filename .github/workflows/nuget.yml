@@ -1,32 +1,31 @@
-name: Publish TinyCsv on NuGet
- 
+name: Publish PlainTextReport on NuGet
+
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
     paths: [ 'src/**' ]
   workflow_dispatch:
-  
+
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-        
+
     - name: Restore dependencies
-      run: dotnet restore src/TinyCsv/TinyCsv.csproj 
-      
+      run: dotnet restore src/PlainTextReport/PlainTextReport.csproj
+
     - name: Build
-      run: dotnet build --no-restore src/TinyCsv/TinyCsv.csproj 
-        
+      run: dotnet build --no-restore -c Release src/PlainTextReport/PlainTextReport.csproj
+
     - name: Package
-      run: dotnet pack -c Release -o . src/TinyCsv/TinyCsv.csproj 
-      
+      run: dotnet pack --no-build -c Release -o . src/PlainTextReport/PlainTextReport.csproj
+
     - name: Publish on NuGet
       run: dotnet nuget push ./*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-    

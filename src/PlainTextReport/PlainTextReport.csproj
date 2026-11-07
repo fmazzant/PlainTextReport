@@ -6,14 +6,16 @@
     <NeutralLanguage>en</NeutralLanguage>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Description>PlainTextReport is a .NET library to generate a plain text report.</Description>
+    <Description>PlainTextReport is a .NET library to generate a plain text report from a collection of objects.</Description>
     <PackageProjectUrl>https://github.com/fmazzant/PlainTextReport</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fmazzant/PlainTextReport</RepositoryUrl>
-    <PackageTags>PlainTextReport,import,export,c-sharp</PackageTags>
+    <PackageTags>PlainTextReport;report;plain-text;text-table;c-sharp</PackageTags>
     <PackageId>Mafesoft.PlainTextReport</PackageId>
     <Authors>Federico Mazzanti</Authors>
     <Copyright>Copyright (c) 2024 Federico Mazzanti</Copyright>
-    <AssemblyName>Mafesoft.$(MSBuildProjectName)</AssemblyName>
+    <AssemblyName>Mafesoft.PlainTextReport</AssemblyName>
+    <RootNamespace>Mafesoft.PlainTextReport</RootNamespace>
+    <Title>Mafesoft.PlainTextReport</Title>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Product>PlainTextReport</Product>
     <Version>1.0.0-rc1</Version>
@@ -28,10 +30,6 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Exceptions\" />
   </ItemGroup>
 
 </Project>

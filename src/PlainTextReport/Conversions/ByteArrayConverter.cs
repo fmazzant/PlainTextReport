@@ -27,10 +27,9 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport.Conversions
+namespace Mafesoft.PlainTextReport.Conversions
 {
     using System;
-    using PlainTextReport.Extensions;
 
     /// <summary>
     /// Provides a unified way of converting ByteArray of values to string
@@ -50,22 +49,6 @@ namespace PlainTextReport.Conversions
                 return System.Convert.ToBase64String(byteArray);
             }
             return default(string);
-        }
-
-        /// <summary>
-        /// Converts a string to target type value.
-        /// </summary>
-        /// <param name="value">The value that is produced by the binding target.</param>
-        /// <param name="targetType">The type to convert to.</param>
-        /// <param name="parameter">The converter parameter to use.</param>
-        /// <returns>A converted value. If the method returns null, the valid null value is used.</returns>
-        public override object ConvertBack(string value, Type targetType, object parameter, IFormatProvider provider)
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return System.Convert.FromBase64String(value);
-            }
-            return targetType.IsNullable() ? null : default(byte[]);
         }
     }
 }

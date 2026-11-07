@@ -1,62 +1,40 @@
-﻿// See https://aka.ms/new-console-template for more information
-using PlainTextReport;
-using PlainTextReport.Conversions;
+using Mafesoft.PlainTextReport;
+using Mafesoft.PlainTextReport.Conversions;
 
-Console.WriteLine("Hello, World!");
-
-var title = "My first plain text report";
 var report = new PlainTextReport<Model>(options =>
 {
     // Options
     options.ShowTitle = true;
-    options.Title = title;
-    options.MultiLineTitle = new string[] { };
+    options.Title = "My first plain text report";
     options.ShowHeader = true;
     options.ShowHeaderSeparator = true;
     options.ShowColumnSeparator = true;
     options.Width = 80;
 
     // Columns
-    options.Columns.AddColumn(m => m.Id, style =>
-    {
-
-    });
-    options.Columns.AddColumn(m => m.Name, style =>
-    {
-
-    });
-    options.Columns.AddColumn(m => m.Price, style =>
-    {
-
-    });
-    options.Columns.AddColumn(m => m.CreatedOn, style =>
-    {
-
-    }, columnFormat: "dd/MM/yyyy");
-    options.Columns.AddColumn(m => m.Enabled, style =>
-    {
-
-    }, new CustomBooleanConverter());
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = 20);
+    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
+    options.Columns.AddColumn(m => m.Enabled, style => style.Alignment = PlainTextReportAlignment.Center, new CustomBooleanConverter());
 });
 
-var models = new List<Model>();
-Enumerable.Range(1, 100).ToList().ForEach(x =>
-{
-    models.Add(new Model
+var models = Enumerable.Range(1, 20)
+    .Select(x => new Model
     {
         Id = x,
-        Name = $"{x}",
-        Price = (decimal)(x * (1.4)),
-        CreatedOn = DateTime.Now
-    });
-});
-
+        Name = $"Product {x}",
+        Price = x * 1.4m,
+        CreatedOn = DateTime.Today.AddDays(-x),
+        Enabled = x % 3 == 0
+    })
+    .ToList();
 
 var text = report
     .Bind(models)
     .GetTextReport();
+
 Console.WriteLine(text);
-Console.ReadLine();
 
 public class Model
 {
@@ -70,13 +48,5 @@ public class Model
 public class CustomBooleanConverter : IValueConverter
 {
     public string Convert(object value, object parameter, IFormatProvider provider)
-    {
-        if (value is bool boolValue && boolValue)
-        {
-            return "Yes";
-        }
-        return "No";
-    }
-
-    public object ConvertBack(string value, Type targetType, object parameter, IFormatProvider provider) => false;
+        => value is bool boolValue && boolValue ? "Yes" : "No";
 }

@@ -26,54 +26,29 @@
 /// OTHER DEALINGS IN THE SOFTWARE.
 /// 
 /// </summary>
-namespace PlainTextReport.Factory
+
+namespace Mafesoft.PlainTextReport.Factory
 {
     using System;
-    using System.Numerics;
-    using PlainTextReport.Conversions;
+    using Mafesoft.PlainTextReport.Conversions;
 
+    /// <summary>
+    /// Creates the default value converter of a column
+    /// </summary>
     public static class ValueConverterFactory
     {
         /// <summary>
         /// Returns the value converter by type
         /// </summary>
-        /// <param name="type"></param>
+        /// <param name="valueType"></param>
         /// <returns></returns>
         public static IValueConverter CreateValueConverterByType(Type valueType)
         {
-            var type = Nullable.GetUnderlyingType(valueType) ?? valueType;
-            switch (type)
+            if (valueType == typeof(byte[]))
             {
-                case Type _ when type == typeof(DateTime): return new DateTimeConverter();
-                case Type _ when type == typeof(DateTimeOffset): return new DateTimeOffsetConverter();
-                case Type _ when type == typeof(TimeSpan): return new TimeSpanConverter();
-                case Type _ when type == typeof(ushort): return new UInt16Converter();
-                case Type _ when type == typeof(uint): return new UInt32Converter();
-                case Type _ when type == typeof(ulong): return new UInt64Converter();
-                case Type _ when type == typeof(short): return new Int16Converter();
-                case Type _ when type == typeof(int): return new Int32Converter();
-                case Type _ when type == typeof(long): return new Int64Converter();
-                case Type _ when type == typeof(BigInteger): return new BigIntegerConverter();
-                case Type _ when type == typeof(decimal): return new DecimalConverter();
-                case Type _ when type == typeof(float): return new FloatConverter();
-                case Type _ when type == typeof(double): return new DoubleConverter();
-                case Type _ when type == typeof(bool): return new BooleanConverter();
-                case Type _ when type == typeof(Uri): return new UriConverter();
-                case Type _ when type == typeof(Enum) || type.IsEnum: return new EnumConverter();
-                case Type _ when type == typeof(sbyte): return new SByteConverter();
-                case Type _ when type == typeof(byte): return new ByteConverter();
-                case Type _ when type == typeof(byte[]): return new ByteArrayConverter();
-                case Type _ when type == typeof(char): return new CharConverter();
-                case Type _ when type == typeof(Guid): return new GuidConverter();
-                case Type _ when type == typeof(string): return new StringConverter();
-
-#if NET6_0_OR_GREATER
-                case Type _ when type == typeof(DateOnly): return new DateOnlyConverter();
-                case Type _ when type == typeof(TimeOnly): return new TimeOnlyConverter();
-#endif
-
-                default: return new DefaultValueConverter();
+                return new ByteArrayConverter();
             }
+            return new DefaultValueConverter();
         }
     }
 }

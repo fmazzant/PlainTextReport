@@ -1,6 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
-using PlainTextReport;
+using Mafesoft.PlainTextReport;
 using PlainTextReportBenchmark;
 
 _ = BenchmarkRunner.Run<PlainTextReportGenerationBenchmark>();

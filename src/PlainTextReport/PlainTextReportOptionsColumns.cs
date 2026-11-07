@@ -27,11 +27,11 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport
+namespace Mafesoft.PlainTextReport
 {
-    using PlainTextReport.Conversions;
-    using PlainTextReport.Extensions;
-    using PlainTextReport.Factory;
+    using Mafesoft.PlainTextReport.Conversions;
+    using Mafesoft.PlainTextReport.Extensions;
+    using Mafesoft.PlainTextReport.Factory;
     using System;
     using System.Collections;
     using System.Collections.Generic;

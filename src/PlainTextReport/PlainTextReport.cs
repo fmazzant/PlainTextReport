@@ -1,9 +1,9 @@
 ﻿/// <summary>
-/// 
+///
 /// The MIT License (MIT)
-/// 
+///
 /// Copyright (c) 2024 Federico Mazzanti
-/// 
+///
 /// Permission is hereby granted, free of charge, to any person
 /// obtaining a copy of this software and associated documentation
 /// files (the "Software"), to deal in the Software without
@@ -12,10 +12,10 @@
 /// copies of the Software, and to permit persons to whom the
 /// Software is furnished to do so, subject to the following
 /// conditions:
-/// 
+///
 /// The above copyright notice and this permission notice shall be
 /// included in all copies or substantial portions of the Software.
-/// 
+///
 /// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 /// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
 /// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -24,21 +24,19 @@
 /// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 /// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 /// OTHER DEALINGS IN THE SOFTWARE.
-/// 
+///
 /// </summary>
 
-namespace PlainTextReport
+namespace Mafesoft.PlainTextReport
 {
-    using PlainTextReport.Extensions;
     using System;
     using System.Collections.Generic;
-    using System.Linq;
 
     /// <summary>
     /// IPlainTextReport interface
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public interface IPlainTextReport<T> where T : class, new()
+    public interface IPlainTextReport<T> where T : class
     {
         /// <summary>
         /// Bind the collection
@@ -61,10 +59,10 @@ namespace PlainTextReport
     }
 
     /// <summary>
-    /// PlainTextReport is a simple PlainTextReport reader/writer library.
+    /// PlainTextReport generates a plain text report from a collection of objects.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public sealed partial class PlainTextReport<T> : IPlainTextReport<T> where T : class, new()
+    public sealed class PlainTextReport<T> : IPlainTextReport<T> where T : class
     {
         /// <summary>
         /// Options
@@ -77,22 +75,26 @@ namespace PlainTextReport
         public IEnumerable<T> Values { get; private set; }
 
         /// <summary>
-        /// Create a new instance of TinyPlainTextReport
+        /// Create a new instance of PlainTextReport
         /// </summary>
         /// <param name="options"></param>
         public PlainTextReport(Action<PlainTextReportOptions<T>> options)
         {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
             Options = new PlainTextReportOptions<T>();
             options(Options);
         }
 
         /// <summary>
-        /// Create a new instance of TinyPlainTextReport
+        /// Create a new instance of PlainTextReport
         /// </summary>
         /// <param name="options"></param>
         public PlainTextReport(PlainTextReportOptions<T> options)
         {
-            Options = options;
+            Options = options ?? throw new ArgumentNullException(nameof(options));
         }
 
         /// <summary>
@@ -100,7 +102,6 @@ namespace PlainTextReport
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
         public IPlainTextReport<T> Bind(IEnumerable<T> values)
         {
             Values = values;
@@ -123,8 +124,7 @@ namespace PlainTextReport
         /// <returns></returns>
         public string[] GetTextLinesReport()
         {
-            var lines = new List<string>();
-            return lines.ToArray();
+            return new PlainTextReportRenderer<T>(Options).Render(Values);
         }
     }
 }

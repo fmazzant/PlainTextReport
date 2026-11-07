@@ -28,15 +28,16 @@
 /// 
 /// </summary>
 
-namespace PlainTextReport.Helpers
+namespace Mafesoft.PlainTextReport.Helpers
 {
     using System.Collections.Concurrent;
     using System;
     using System.Linq;
+    using System.Reflection;
     using LinqExpression = System.Linq.Expressions.Expression;
 
     /// <summary>
-    /// Faster setter and getter on property
+    /// Faster getter on property
     /// </summary>
     /// <typeparam name="T"></typeparam>
     public class PropertyHelper<T>
@@ -52,11 +53,6 @@ namespace PlainTextReport.Helpers
         public Func<T, object> Getter { get; set; }
 
         /// <summary>
-        /// Compiled set method
-        /// </summary>
-        public Action<T, object> Setter { get; set; }
-
-        /// <summary>
         /// CacheExpressionTree
         /// </summary>
         private static readonly ConcurrentDictionary<Type, PropertyHelper<T>[]> CacheExpressionTree = new ConcurrentDictionary<Type, PropertyHelper<T>[]>();
@@ -68,10 +64,12 @@ namespace PlainTextReport.Helpers
         /// <returns></returns>
         private static PropertyHelper<T>[] GetPropertiesExpressionTreeInternal(Type type)
         {
-            return CacheExpressionTree.GetOrAdd(type, x => x.GetProperties().Select(property =>
+            return CacheExpressionTree.GetOrAdd(type, x => x
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .Where(property => property.GetIndexParameters().Length == 0)
+                .Select(property =>
             {
                 Type eventLogCustomType = property.DeclaringType;
-                Type propertyType = property.PropertyType;
 
                 var instance = LinqExpression.Parameter(typeof(T));
 
@@ -90,26 +88,10 @@ namespace PlainTextReport.Helpers
                     .Compile();
                 }
 
-                Action<T, object> setter = null;
-                var setMethod = property.GetSetMethod();
-                if (setMethod != null)
-                {
-                    var parameter = LinqExpression.Parameter(typeof(object));
-                    setter =
-                    LinqExpression.Lambda<Action<T, object>>(
-                      LinqExpression.Call(
-                        LinqExpression.Convert(instance, eventLogCustomType),
-                        setMethod,
-                        LinqExpression.Convert(parameter, propertyType)),
-                      instance, parameter)
-                    .Compile();
-                }
-
                 return new PropertyHelper<T>
                 {
                     Name = property.Name,
                     Getter = getter,
-                    Setter = setter,
                 };
             }).ToArray());
         }
