@@ -168,7 +168,7 @@ namespace Mafesoft.PlainTextReport
             for (int i = 0; i < columns.Length; i++)
             {
                 if (i > 0) builder.Append(separator);
-                AppendCell(builder, Clean(columns[i].ColumnName), widths[i], GetHeaderAlignment(columns[i]));
+                AppendCell(builder, Clean(columns[i].Caption), widths[i], GetHeaderAlignment(columns[i]));
             }
             lines.Add(builder.ToString().TrimEnd());
 
@@ -303,7 +303,7 @@ namespace Mafesoft.PlainTextReport
                     // without a report width a percentage column is automatic
                 }
 
-                var width = options.ShowHeader ? (columns[i].ColumnName ?? string.Empty).Length : 0;
+                var width = options.ShowHeader ? Clean(columns[i].Caption).Length : 0;
                 foreach (var cells in rows)
                 {
                     width = Math.Max(width, GetCellWidth(cells[i], i));

@@ -109,10 +109,22 @@ The culture is also used by the `{date}` placeholder of header and footer, and i
 
 | Property | Default | Description |
 | --- | --- | --- |
+| `Caption` | `null` | The text printed in the header. When `null` it is the column name (`columnName`, or the name of the property). |
 | `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
 | `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
+
+The caption can be set together with the rest of the style:
+
+```c#
+options.Columns.AddColumn(m => m.Price, style =>
+{
+    style.Caption = "Prezzo";
+    style.Width = 10;
+    style.Alignment = PlainTextReportAlignment.Right;
+}, columnFormat: "N2");
+```
 
 ### Column width in characters or percentage
 

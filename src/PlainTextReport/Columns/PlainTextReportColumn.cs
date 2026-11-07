@@ -118,5 +118,10 @@ namespace Mafesoft.PlainTextReport
         /// Column's style
         /// </summary>
         public PlainTextReportColumnStyle Style { get; set; } = new PlainTextReportColumnStyle();
+
+        /// <summary>
+        /// The text printed in the header: <see cref="PlainTextReportColumnStyle.Caption"/> when set, otherwise <see cref="ColumnName"/>
+        /// </summary>
+        public string Caption => Style?.Caption ?? ColumnName;
     }
 }
