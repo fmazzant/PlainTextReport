@@ -221,12 +221,23 @@ namespace Mafesoft.PlainTextReport
         private int[] GetColumnWidths(List<string[]> rows, int maxWidth)
         {
             var widths = new int[columns.Length];
+            var percents = new double[columns.Length];
             for (int i = 0; i < columns.Length; i++)
             {
-                if (columns[i].Style.Width is int fixedWidth)
+                if (columns[i].Style.Width is ColumnWidth columnWidth)
                 {
-                    widths[i] = Math.Max(1, fixedWidth);
-                    continue;
+                    if (!columnWidth.IsPercent)
+                    {
+                        widths[i] = Math.Max(1, (int)columnWidth.Value);
+                        continue;
+                    }
+                    if (maxWidth > 0)
+                    {
+                        // computed below, from the free space
+                        percents[i] = columnWidth.Value;
+                        continue;
+                    }
+                    // without a report width a percentage column is automatic
                 }
 
                 var width = options.ShowHeader ? (columns[i].ColumnName ?? string.Empty).Length : 0;
@@ -240,6 +251,7 @@ namespace Mafesoft.PlainTextReport
             if (maxWidth > 0 && columns.Length > 0)
             {
                 var separatorLength = options.ShowColumnSeparator ? 3 : 1;
+                SetPercentWidths(widths, percents, maxWidth - separatorLength * (columns.Length - 1));
                 var excess = widths.Sum() + separatorLength * (columns.Length - 1) - maxWidth;
 
                 // shrink the automatic text columns first, then the automatic numeric ones, then the fixed ones
@@ -255,6 +267,52 @@ namespace Mafesoft.PlainTextReport
             }
 
             return widths;
+        }
+
+        /// <summary>
+        /// Gives the percentage columns their share of the space left by the other columns.
+        /// When the percentages add up to 100% or more, the whole free space is used:
+        /// two columns at 100% get half of it each.
+        /// </summary>
+        /// <param name="widths">The widths; the percentage columns are still 0</param>
+        /// <param name="percents">The percentage of every column, 0 for the others</param>
+        /// <param name="contentWidth">The report width without the column separators</param>
+        private static void SetPercentWidths(int[] widths, double[] percents, int contentWidth)
+        {
+            var totalPercent = percents.Sum();
+            if (totalPercent <= 0)
+            {
+                return;
+            }
+
+            var free = Math.Max(0, contentWidth - widths.Sum());
+            var scale = Math.Max(100, totalPercent);
+            var exact = percents.Select(p => free * p / scale).ToArray();
+
+            for (int i = 0; i < widths.Length; i++)
+            {
+                if (percents[i] > 0) widths[i] = (int)Math.Floor(exact[i]);
+            }
+
+            // when the whole free space is used, the characters lost by the rounding go to the largest remainders
+            if (totalPercent >= 100)
+            {
+                var left = free - Enumerable.Range(0, widths.Length).Where(i => percents[i] > 0).Sum(i => widths[i]);
+                var order = Enumerable.Range(0, widths.Length)
+                    .Where(i => percents[i] > 0)
+                    .OrderByDescending(i => exact[i] - Math.Floor(exact[i]))
+                    .ThenBy(i => i)
+                    .ToArray();
+                for (int k = 0; k < left && order.Length > 0; k++)
+                {
+                    widths[order[k % order.Length]]++;
+                }
+            }
+
+            for (int i = 0; i < widths.Length; i++)
+            {
+                if (percents[i] > 0 && widths[i] < 1) widths[i] = 1;
+            }
         }
 
         /// <summary>
@@ -471,7 +529,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Replaces the placeholders {page}, {pages}, {title} and {date}, with an optional format
         /// </summary>
-        private static string Format(string text, int number, int count, DateTime date, string title)
+        internal static string Format(string text, int number, int count, DateTime date, string title)
         {
             if (string.IsNullOrEmpty(text))
             {

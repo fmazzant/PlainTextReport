@@ -44,21 +44,21 @@ var pagedReport = new PlainTextReport<Model>(options =>
     options.ShowHeaderSeparator = true;
     options.ShowColumnSeparator = true;
 
-    options.Page = new PlainTextReportPageSettings(PaperSize.A4, PageOrientation.Portrait)
+    options.Page = new PlainTextReportPageSettings(PaperSize.A4, PageOrientation.Landscape)
     {
-        MarginLeft = 4,
-        MarginRight = 4,
-        MarginTop = 2,
-        MarginBottom = 2,
+        MarginLeft = 2,
+        MarginRight = 2,
+        MarginTop = 1,
+        MarginBottom = 1,
     };
     options.Page.Header.Left = "{title}";
     options.Page.Header.Right = "{date:dd/MM/yyyy}";
     options.Page.Header.ShowSeparator = true;
-    options.Page.Footer.Center = "Page {page} of {pages}";
+    options.Page.Footer.Right = "{page}/{pages}";
     options.Page.Footer.ShowSeparator = true;
 
     options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%"); // takes all the free space
     options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
     options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
 });
@@ -72,6 +72,13 @@ foreach (var page in pages)
     Console.WriteLine(page);
     Console.WriteLine();
 }
+
+// Save the report in one file (pages separated by form feed) and every page in its own file
+var outputDirectory = Path.Combine("D:\\", "PlainTextReportSample");
+Directory.CreateDirectory(outputDirectory);
+pagedReport.SaveToFile(Path.Combine(outputDirectory, "report.txt"));
+var files = pagedReport.SavePagesToFiles(outputDirectory, "page-{page:000}.txt");
+Console.WriteLine($"Saved report.txt and {files.Length} pages in {outputDirectory}");
 
 public class Model
 {

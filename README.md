@@ -94,9 +94,26 @@ Values are formatted with the invariant culture, unless an `IFormatProvider` is 
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `Width` | `null` | Fixed width of the column. When `null` the width fits the header and the longest value. |
+| `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
+
+### Column width in characters or percentage
+
+`Width` is a `ColumnWidth`: it can be set with an `int` (characters) or with a string (`"20"` characters, `"50%"` percentage). `ColumnWidth.Characters(20)` and `ColumnWidth.Percent(50)` do the same.
+
+```c#
+options.Columns.AddColumn(m => m.Id, style => style.Width = 6);          // 6 characters
+options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");   // all the free space
+options.Columns.AddColumn(m => m.Notes, style => style.Width = "50%");   // half of the free space
+```
+
+A percentage is a share of the **free space**: the report width (`options.Width`, or the printable width of the page) minus the column separators and the columns with a fixed or automatic width.
+
+- `100%` takes all the free space, so the column grows until the table fills the report width.
+- When the percentages add up to more than 100% they are scaled down proportionally: two columns at `100%` get 50% each, `100%` and `50%` get two thirds and one third.
+- Below 100% the rest of the free space stays empty: one column at `50%` takes half of it.
+- Without a report width (no `options.Width` and no page settings) there is no free space to share, so a percentage column is sized like an automatic column.
 
 ### Width and truncation
 
@@ -130,7 +147,7 @@ var report = new PlainTextReport<Model>(options =>
     options.Page.Footer.ShowSeparator = true;
 
     options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");
 });
 ```
 
@@ -140,7 +157,7 @@ Every page has exactly the height of the paper, so the footer is always at the b
     Products                                                        07/11/2026
     --------------------------------------------------------------------------
      Id | Name
-    ----+-------------
+    ----+---------------------------------------------------------------------
       1 | Product 1
       2 | Product 2
     ...
@@ -230,6 +247,26 @@ PlainTextReportPage[] pages = report
 ```
 
 Without page settings `GetPagesReport` returns a single page with the whole report.
+
+## Save to file
+
+Save the whole report in one file, or every page in its own file:
+
+```c#
+// one file; with pages, the pages are separated by PageBreak (form feed by default)
+report.Bind(models).SaveToFile("report.txt");
+
+// a file for every page: page-001.txt, page-002.txt, ...
+string[] files = report.Bind(models).SavePagesToFiles("pages");
+
+// a custom file name, with the placeholders {page}, {pages}, {title} and {date}
+report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000}.txt");
+```
+
+- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
+- Existing files are overwritten, and the directory of `SavePagesToFiles` is created when missing.
+- The file name pattern must contain `{page}` when there is more than one page; characters that are not valid in a file name are replaced by `_`.
+- Without page settings `SavePagesToFiles` writes a single file.
 
 A complete example, with and without pages, is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
 

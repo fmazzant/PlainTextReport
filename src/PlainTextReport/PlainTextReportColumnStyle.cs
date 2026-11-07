@@ -56,10 +56,10 @@ namespace Mafesoft.PlainTextReport
     public sealed class PlainTextReportColumnStyle
     {
         /// <summary>
-        /// Fixed width of the column, in characters.
-        /// When null the width is computed from the header and the values.
+        /// Width of the column: a number of characters (style.Width = 20) or a percentage of the free space (style.Width = "50%").
+        /// When null the width is computed from the header and the values. See <see cref="ColumnWidth"/>.
         /// </summary>
-        public int? Width { get; set; }
+        public ColumnWidth? Width { get; set; }
 
         /// <summary>
         /// Alignment of the values.
