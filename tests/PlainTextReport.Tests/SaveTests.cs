@@ -94,6 +94,100 @@ namespace Mafesoft.PlainTextReport.Tests
         }
 
         [Fact]
+        public void SaveToFile_with_an_absolute_path_creates_the_directory()
+        {
+            var report = CreateReport();
+            var path = Path.Combine(directory, "reports", "2026", "report.txt");
+            Assert.True(Path.IsPathRooted(path));
+
+            var saved = report.SaveToFile(path);
+
+            Assert.Equal(path, saved);
+            Assert.Equal(report.GetTextReport() + Environment.NewLine, File.ReadAllText(path));
+        }
+
+        [Fact]
+        public void SaveToFile_with_a_relative_path_returns_the_absolute_path()
+        {
+            var report = CreateReport();
+            var absolute = Path.Combine(directory, "relative.txt");
+            var relative = Path.GetRelativePath(Environment.CurrentDirectory, absolute);
+
+            var saved = report.SaveToFile(relative);
+
+            Assert.True(Path.IsPathRooted(saved));
+            Assert.Equal(Path.GetFullPath(absolute), saved);
+            Assert.True(File.Exists(absolute));
+        }
+
+        [Fact]
+        public void SaveToFile_normalizes_the_path()
+        {
+            var path = Path.Combine(directory, "sub", "..", "report.txt");
+
+            var saved = CreateReport().SaveToFile(path);
+
+            Assert.Equal(Path.Combine(directory, "report.txt"), saved);
+            Assert.True(File.Exists(saved));
+        }
+
+        [Fact]
+        public void SaveToFile_overwrites_the_file()
+        {
+            var path = Path.Combine(directory, "report.txt");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(path, new string('x', 10000));
+
+            var report = CreateReport();
+            report.SaveToFile(path);
+
+            Assert.Equal(report.GetTextReport() + Environment.NewLine, File.ReadAllText(path));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("   ")]
+        public void SaveToFile_requires_a_path(string? path)
+        {
+            Assert.Throws<ArgumentException>(() => CreateReport().SaveToFile(path!));
+        }
+
+        [Fact]
+        public void SaveToFile_requires_a_file_name()
+        {
+            var path = Path.Combine(directory, "folder") + Path.DirectorySeparatorChar;
+
+            Assert.Throws<ArgumentException>(() => CreateReport().SaveToFile(path));
+            Assert.False(Directory.Exists(directory));
+        }
+
+        [Fact]
+        public void SavePagesToFiles_returns_absolute_paths()
+        {
+            var relative = Path.GetRelativePath(Environment.CurrentDirectory, Path.Combine(directory, "pages"));
+
+            var paths = CreateReport().SavePagesToFiles(relative);
+
+            Assert.Equal(3, paths.Length);
+            Assert.All(paths, path =>
+            {
+                Assert.True(Path.IsPathRooted(path));
+                Assert.Equal(Path.Combine(directory, "pages"), Path.GetDirectoryName(path));
+                Assert.True(File.Exists(path));
+            });
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData(" ")]
+        public void SavePagesToFiles_requires_a_directory(string? path)
+        {
+            Assert.Throws<ArgumentException>(() => CreateReport().SavePagesToFiles(path!));
+        }
+
+        [Fact]
         public void SavePagesToFiles_without_page_settings_writes_one_file()
         {
             var report = new PlainTextReport<Item>(options => options.Columns.AddColumn(m => m.Id, style => { }))

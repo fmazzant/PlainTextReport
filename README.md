@@ -77,6 +77,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `ColumnSeparator` | `'\|'` | The character used to separate the columns. |
 | `HeaderSeparator` | `'-'` | The character used to draw the line below the header. |
 | `Width` | `0` | The maximum width of the report, in characters. `0` means no limit. |
+| `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
 
 ### Columns
 
@@ -97,6 +98,7 @@ Values are formatted with the invariant culture, unless an `IFormatProvider` is 
 | `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
+| `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
 
 ### Column width in characters or percentage
 
@@ -120,6 +122,28 @@ A percentage is a share of the **free space**: the report width (`options.Width`
 When `Width` is set and the columns don't fit, the report shrinks the automatic text columns first, then the automatic numeric columns, and the fixed-width columns last. A value that doesn't fit its column ends with `…`, so a truncated value is always visible.
 
 Line breaks and tabs in the values are replaced by spaces, and trailing spaces are removed from every line.
+
+### Multi-line rows
+
+With `options.MultiLineRows = true` a value longer than its column is not truncated: it wraps on more lines, breaking between the words (a word longer than the column is split). The line breaks of a value start a new line, and the row is as tall as its tallest cell. A single column can turn it on or off with `style.MultiLine`.
+
+```c#
+options.MultiLineRows = true;
+options.Columns.AddColumn(m => m.Id, style => { });
+options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
+options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+```
+
+```text
+Id | Name             | Price
+---+------------------+------
+ 1 | Red apples from  |  2.50
+   | the Italian Alps |
+ 2 | Bananas          |  1.20
+   | imported         |
+```
+
+With pages, the lines of a row are kept on the same page; only a row taller than a whole page continues on the next one.
 
 ## Pages
 
@@ -256,15 +280,20 @@ Save the whole report in one file, or every page in its own file:
 // one file; with pages, the pages are separated by PageBreak (form feed by default)
 report.Bind(models).SaveToFile("report.txt");
 
+// an absolute path: the directories are created when missing; the absolute path of the file is returned
+string file = report.Bind(models).SaveToFile(@"C:\Reports\2026\report.txt");
+
 // a file for every page: page-001.txt, page-002.txt, ...
 string[] files = report.Bind(models).SavePagesToFiles("pages");
+string[] absoluteFiles = report.Bind(models).SavePagesToFiles(@"C:\Reports\2026\pages");
 
 // a custom file name, with the placeholders {page}, {pages}, {title} and {date}
 report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000}.txt");
 ```
 
 - The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
-- Existing files are overwritten, and the directory of `SavePagesToFiles` is created when missing.
+- Paths can be absolute or relative to the current directory; both methods return absolute paths.
+- Existing files are overwritten, and missing directories are created.
 - The file name pattern must contain `{page}` when there is more than one page; characters that are not valid in a file name are replaced by `_`.
 - Without page settings `SavePagesToFiles` writes a single file.
 

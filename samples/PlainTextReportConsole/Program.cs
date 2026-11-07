@@ -73,12 +73,34 @@ foreach (var page in pages)
     Console.WriteLine();
 }
 
-// Save the report in one file (pages separated by form feed) and every page in its own file
-var outputDirectory = Path.Combine("D:\\", "PlainTextReportSample");
-Directory.CreateDirectory(outputDirectory);
-pagedReport.SaveToFile(Path.Combine(outputDirectory, "report.txt"));
-var files = pagedReport.SavePagesToFiles(outputDirectory, "page-{page:000}.txt");
-Console.WriteLine($"Saved report.txt and {files.Length} pages in {outputDirectory}");
+// Multi-line rows: long values wrap in their column, line breaks start a new line
+var multiLineReport = new PlainTextReport<Model>(options =>
+{
+    options.ShowHeader = true;
+    options.ShowHeaderSeparator = true;
+    options.ShowColumnSeparator = true;
+    options.MultiLineRows = true;
+
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
+    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+});
+
+Console.WriteLine(multiLineReport
+    .Bind(new[]
+    {
+        new Model { Id = 1, Name = "Red apples from the Italian Alps", Price = 2.5m },
+        new Model { Id = 2, Name = "Bananas\nimported", Price = 1.2m },
+    })
+    .GetTextReport());
+Console.WriteLine();
+
+// Save the report in one file (pages separated by form feed) and every page in its own file.
+// The paths can be absolute or relative; the directories are created when missing.
+var outputDirectory = Path.Combine(Path.GetTempPath(), "PlainTextReportSample");
+var reportFile = pagedReport.SaveToFile(Path.Combine(outputDirectory, "report.txt"));
+var files = pagedReport.SavePagesToFiles(Path.Combine(outputDirectory, "pages"), "page-{page:000}.txt");
+Console.WriteLine($"Saved {reportFile} and {files.Length} pages in {Path.GetDirectoryName(files[0])}");
 
 public class Model
 {

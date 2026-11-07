@@ -54,6 +54,13 @@ namespace Mafesoft.PlainTextReport
         public bool IsMultiLineTitle { get; }
 
         /// <summary>
+        /// Multi-line rows: a value longer than its column wraps on more lines, and the line breaks
+        /// of a value start a new line. When false a value is kept on one line and truncated with an ellipsis.
+        /// A column can override it with <see cref="PlainTextReportColumnStyle.MultiLine"/>.
+        /// </summary>
+        public bool MultiLineRows { get; set; }
+
+        /// <summary>
         /// Show Title
         /// </summary>
         public bool ShowTitle { get; set; }
@@ -113,6 +120,13 @@ namespace Mafesoft.PlainTextReport
         /// Returns is report's title is multi-line
         /// </summary>
         public bool IsMultiLineTitle => this.MultiLineTitle != null && this.MultiLineTitle.Length > 0;
+
+        /// <summary>
+        /// Multi-line rows: a value longer than its column wraps on more lines, and the line breaks
+        /// of a value start a new line. When false a value is kept on one line and truncated with an ellipsis.
+        /// A column can override it with <see cref="PlainTextReportColumnStyle.MultiLine"/>.
+        /// </summary>
+        public bool MultiLineRows { get; set; }
 
         /// <summary>
         /// Show Title

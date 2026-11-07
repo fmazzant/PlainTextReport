@@ -69,17 +69,19 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Saves the whole report in a file, with the page breaks between the pages
         /// </summary>
-        /// <param name="path">The file path; the file is overwritten</param>
+        /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
+        /// and its directory is created when missing</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        void SaveToFile(string path, Encoding encoding = null);
+        /// <returns>The absolute path of the file</returns>
+        string SaveToFile(string path, Encoding encoding = null);
 
         /// <summary>
         /// Saves every page in its own file
         /// </summary>
-        /// <param name="directory">The directory; it is created when missing</param>
+        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
         /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <returns>The paths of the files, in page order</returns>
+        /// <returns>The absolute paths of the files, in page order</returns>
         string[] SavePagesToFiles(string directory, string fileNamePattern = "page-{page:000}.txt", Encoding encoding = null);
     }
 
@@ -173,30 +175,46 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Saves the whole report in a file, with the page breaks between the pages
         /// </summary>
-        /// <param name="path">The file path; the file is overwritten</param>
+        /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
+        /// and its directory is created when missing</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        public void SaveToFile(string path, Encoding encoding = null)
+        /// <returns>The absolute path of the file</returns>
+        public string SaveToFile(string path, Encoding encoding = null)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
                 throw new ArgumentException("The path is required.", nameof(path));
             }
-            File.WriteAllText(path, GetTextReport() + Environment.NewLine, encoding ?? DefaultEncoding);
+
+            var fullPath = Path.GetFullPath(path);
+            if (string.IsNullOrEmpty(Path.GetFileName(fullPath)))
+            {
+                throw new ArgumentException("The path must contain a file name.", nameof(path));
+            }
+
+            var directory = Path.GetDirectoryName(fullPath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            File.WriteAllText(fullPath, GetTextReport() + Environment.NewLine, encoding ?? DefaultEncoding);
+            return fullPath;
         }
 
         /// <summary>
         /// Saves every page in its own file
         /// </summary>
-        /// <param name="directory">The directory; it is created when missing</param>
+        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
         /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <returns>The paths of the files, in page order</returns>
+        /// <returns>The absolute paths of the files, in page order</returns>
         public string[] SavePagesToFiles(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null)
         {
             if (string.IsNullOrWhiteSpace(directory))
             {
                 throw new ArgumentException("The directory is required.", nameof(directory));
             }
+            directory = Path.GetFullPath(directory);
             if (string.IsNullOrWhiteSpace(fileNamePattern))
             {
                 throw new ArgumentException("The file name pattern is required.", nameof(fileNamePattern));

@@ -52,6 +52,7 @@ namespace Mafesoft.PlainTextReport
         private readonly PlainTextReportOptions<T> options;
         private readonly PlainTextReportColumn[] columns;
         private readonly Func<T, object>[] getters;
+        private readonly bool[] multiLine;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -62,6 +63,7 @@ namespace Mafesoft.PlainTextReport
             this.options = options;
             this.columns = options.Columns.OrderBy(c => c.ColumnIndex).ToArray();
             this.getters = columns.Select(GetGetter).ToArray();
+            this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
         }
 
         /// <summary>
@@ -103,7 +105,7 @@ namespace Mafesoft.PlainTextReport
                 var lines = new List<string>(title.Count + columnHeader.Count + body.Count);
                 lines.AddRange(title);
                 lines.AddRange(columnHeader);
-                lines.AddRange(body);
+                lines.AddRange(body.SelectMany(row => row));
                 return new[] { new PlainTextReportPage(1, 1, lines.ToArray()) };
             }
 
@@ -175,33 +177,46 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns a line for every row
+        /// Returns the lines of every row: one line, or more when a multi-line value wraps
         /// </summary>
-        private List<string> GetRowLines(List<string[]> rows, int[] widths, string separator)
+        private List<string[]> GetRowLines(List<string[]> rows, int[] widths, string separator)
         {
-            var lines = new List<string>(rows.Count);
+            var result = new List<string[]>(rows.Count);
             if (columns.Length == 0)
             {
-                return lines;
+                return result;
             }
 
             var alignments = columns.Select(GetAlignment).ToArray();
             var builder = new StringBuilder();
+            var cellLines = new string[columns.Length][];
             foreach (var cells in rows)
             {
-                builder.Clear();
+                var height = 1;
                 for (int i = 0; i < cells.Length; i++)
                 {
-                    if (i > 0) builder.Append(separator);
-                    AppendCell(builder, cells[i], widths[i], alignments[i]);
+                    cellLines[i] = multiLine[i] ? Wrap(cells[i], widths[i]) : new[] { cells[i] };
+                    height = Math.Max(height, cellLines[i].Length);
                 }
-                lines.Add(builder.ToString().TrimEnd());
+
+                var lines = new string[height];
+                for (int k = 0; k < height; k++)
+                {
+                    builder.Clear();
+                    for (int i = 0; i < cells.Length; i++)
+                    {
+                        if (i > 0) builder.Append(separator);
+                        AppendCell(builder, k < cellLines[i].Length ? cellLines[i][k] : string.Empty, widths[i], alignments[i]);
+                    }
+                    lines[k] = builder.ToString().TrimEnd();
+                }
+                result.Add(lines);
             }
-            return lines;
+            return result;
         }
 
         /// <summary>
-        /// Returns the cells of a row
+        /// Returns the cells of a row. The multi-line cells keep their line breaks, as '\n'.
         /// </summary>
         private string[] GetCells(T model)
         {
@@ -210,9 +225,53 @@ namespace Mafesoft.PlainTextReport
             {
                 var column = columns[i];
                 var value = model == null ? null : getters[i](model);
-                cells[i] = Clean(column.Converter.Convert(value, null, column.ColumnFormatProvider));
+                var text = column.Converter.Convert(value, null, column.ColumnFormatProvider);
+                cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }
             return cells;
+        }
+
+        /// <summary>
+        /// Returns the width a cell needs: its longest line
+        /// </summary>
+        private int GetCellWidth(string cell, int column)
+        {
+            if (!multiLine[column] || cell.IndexOf('\n') < 0)
+            {
+                return cell.Length;
+            }
+            return cell.Split('\n').Max(line => line.Length);
+        }
+
+        /// <summary>
+        /// Wraps a multi-line cell in lines of the given width: the line breaks start a new line,
+        /// the words are not split unless they are longer than the width.
+        /// </summary>
+        internal static string[] Wrap(string text, int width)
+        {
+            var lines = new List<string>();
+            foreach (var paragraph in text.Split('\n'))
+            {
+                var line = paragraph.TrimEnd();
+                while (line.Length > width)
+                {
+                    // break at the last space that fits, otherwise split the word
+                    var cut = line.LastIndexOf(' ', width);
+                    if (cut <= 0)
+                    {
+                        lines.Add(line.Substring(0, width));
+                        line = line.Substring(width);
+                    }
+                    else
+                    {
+                        lines.Add(line.Substring(0, cut).TrimEnd());
+                        line = line.Substring(cut + 1);
+                    }
+                    line = line.TrimStart(' ');
+                }
+                lines.Add(line);
+            }
+            return lines.ToArray();
         }
 
         /// <summary>
@@ -243,7 +302,7 @@ namespace Mafesoft.PlainTextReport
                 var width = options.ShowHeader ? (columns[i].ColumnName ?? string.Empty).Length : 0;
                 foreach (var cells in rows)
                 {
-                    width = Math.Max(width, cells[i].Length);
+                    width = Math.Max(width, GetCellWidth(cells[i], i));
                 }
                 widths[i] = Math.Max(1, width);
             }
@@ -396,7 +455,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Splits the report in pages, each one with header, body and footer and exactly the page height
         /// </summary>
-        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string> body)
+        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string[]> rows)
         {
             var header = page.Header ?? new PlainTextReportPageBand();
             var footer = page.Footer ?? new PlainTextReportPageBand();
@@ -406,9 +465,12 @@ namespace Mafesoft.PlainTextReport
                 throw new InvalidOperationException($"The page {page.PaperSize} has no room for the body: reduce the header, the footer or the margins.");
             }
 
-            // split the body in pages
+            // split the body in pages; the lines of a multi-line row stay on the same page,
+            // unless the row is longer than a whole page
             var bodies = new List<List<string>>();
-            var next = 0;
+            var nextPageCapacity = capacity - (page.RepeatColumnHeader ? columnHeader.Count : 0);
+            var row = 0;
+            var rowLine = 0;
             do
             {
                 var first = bodies.Count == 0;
@@ -416,18 +478,36 @@ namespace Mafesoft.PlainTextReport
                 if (first) lines.AddRange(title);
                 if (first || page.RepeatColumnHeader) lines.AddRange(columnHeader);
 
-                if (lines.Count > capacity || (!first && lines.Count == capacity && next < body.Count))
+                var start = lines.Count;
+                if (start > capacity || (!first && start == capacity && row < rows.Count))
                 {
                     throw new InvalidOperationException($"The page {page.PaperSize} is too small for the title and the column header.");
                 }
 
-                while (next < body.Count && lines.Count < capacity)
+                while (row < rows.Count && lines.Count < capacity)
                 {
-                    lines.Add(body[next++]);
+                    var left = rows[row].Length - rowLine;
+                    var free = capacity - lines.Count;
+                    if (left > free && lines.Count > start && rowLine == 0 && rows[row].Length <= nextPageCapacity)
+                    {
+                        // the row fits on the next page
+                        break;
+                    }
+
+                    var take = Math.Min(left, free);
+                    for (int k = 0; k < take; k++)
+                    {
+                        lines.Add(rows[row][rowLine++]);
+                    }
+                    if (rowLine == rows[row].Length)
+                    {
+                        row++;
+                        rowLine = 0;
+                    }
                 }
                 bodies.Add(lines);
             }
-            while (next < body.Count);
+            while (row < rows.Count);
 
             // compose the pages
             var count = bodies.Count;
@@ -568,6 +648,22 @@ namespace Mafesoft.PlainTextReport
                 return text;
             }
             return text.Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ');
+        }
+
+        /// <summary>
+        /// Turns every line break in '\n' and the tabs in spaces
+        /// </summary>
+        private static string NormalizeLineBreaks(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return string.Empty;
+            }
+            if (text.IndexOfAny(LayoutBreakers) < 0)
+            {
+                return text;
+            }
+            return text.Replace("\r\n", "\n").Replace('\r', '\n').Replace('\t', ' ');
         }
 
         /// <summary>

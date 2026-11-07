@@ -72,5 +72,11 @@ namespace Mafesoft.PlainTextReport
         /// When null the alignment of the values is used.
         /// </summary>
         public PlainTextReportAlignment? HeaderAlignment { get; set; }
+
+        /// <summary>
+        /// Multi-line values: a value longer than the column wraps on more lines, and its line breaks start a new line.
+        /// When null <see cref="PlainTextReportOptions.MultiLineRows"/> is used.
+        /// </summary>
+        public bool? MultiLine { get; set; }
     }
 }
