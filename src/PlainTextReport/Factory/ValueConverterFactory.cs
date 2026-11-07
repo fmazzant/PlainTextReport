@@ -35,7 +35,7 @@ namespace Mafesoft.PlainTextReport.Factory
     /// <summary>
     /// Creates the default value converter of a column
     /// </summary>
-    public static class ValueConverterFactory
+    internal static class ValueConverterFactory
     {
         /// <summary>
         /// Returns the value converter by type

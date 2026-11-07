@@ -50,9 +50,9 @@ namespace Mafesoft.PlainTextReport
         public string ColumnName { get; internal set; }
 
         /// <summary>
-        /// Column's name
+        /// The compiled getter of the value: a Func&lt;M, object&gt; of the model type
         /// </summary>
-        internal string ColumnNameInternal { get; set; }
+        internal Delegate Getter { get; set; }
 
         /// <summary>
         /// Column's type
@@ -80,30 +80,38 @@ namespace Mafesoft.PlainTextReport
         private IFormatProvider _FormatProvider = null;
 
         /// <summary>
-        /// Column's value format provider
+        /// Column's value format provider. When it is not set, the values are formatted with
+        /// <see cref="ColumnFormat"/> in the culture of the report (<see cref="PlainTextReportOptions.Culture"/>);
+        /// read from here, without a report, the culture is the invariant one.
         /// </summary>
         public IFormatProvider ColumnFormatProvider
         {
             get
             {
-                var formatProvider = _FormatProvider;
-                if (formatProvider == null)
-                {
-                    if (string.IsNullOrEmpty(ColumnFormat))
-                    {
-                        formatProvider = CultureInfo.InvariantCulture;
-                    }
-                    else
-                    {
-                        formatProvider = new DefaultFormatProvider(ColumnFormat);
-                    }
-                }
-                return formatProvider;
+                return GetFormatProvider(CultureInfo.InvariantCulture);
             }
             set
             {
                 _FormatProvider = value;
             }
+        }
+
+        /// <summary>
+        /// Returns the format provider of the values, for the culture of the report
+        /// </summary>
+        /// <param name="culture">The culture of the report</param>
+        /// <returns></returns>
+        internal IFormatProvider GetFormatProvider(CultureInfo culture)
+        {
+            if (_FormatProvider != null)
+            {
+                return _FormatProvider;
+            }
+            if (string.IsNullOrEmpty(ColumnFormat))
+            {
+                return culture;
+            }
+            return new DefaultFormatProvider(ColumnFormat, culture);
         }
 
         /// <summary>

@@ -176,30 +176,22 @@ namespace Mafesoft.PlainTextReport
         /// <param name="expression"></param>
         /// <param name="columnFormat"></param>
         /// <param name="formatProvider"></param>
-        private void AddColumn<T>(int columnIndex, string columnName, Expression<Func<M, T>> expression, string columnFormat = null, IFormatProvider formatProvider = null, IValueConverter converter = null)
+        private void AddColumn<T>(int columnIndex, string columnName, Expression<Func<M, T>> expression, string columnFormat = null, IFormatProvider formatProvider = null, IValueConverter valueConverter = null)
         {
-            AddColumn(typeof(T), columnIndex, columnName, expression, columnFormat, formatProvider, converter);
-        }
+            if (expression == null)
+            {
+                throw new ArgumentNullException(nameof(expression));
+            }
 
-        /// <summary>
-        /// Add Column
-        /// </summary>
-        /// <param name="columnIndex"></param>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name="columnFormat"></param>
-        /// <param name="formatProvider"></param>
-        private void AddColumn(Type type, int columnIndex, string columnName, Expression expression, string columnFormat = null, IFormatProvider formatProvider = null, IValueConverter valueConverter = null)
-        {
+            var type = typeof(T);
             var index = columnIndex < 0 ? Columns.Count : columnIndex;
-            var columnNameInternal = expression?.GetPropertyName() ?? columnName;
             var converter = valueConverter ?? ValueConverterFactory.CreateValueConverterByType(type);
 
             Columns.Add(new PlainTextReportColumn()
             {
                 ColumnIndex = index,
                 ColumnName = columnName,
-                ColumnNameInternal = columnNameInternal,
+                Getter = expression.CreateGetter<M>(),
                 ColumnType = type,
                 ColumnExpression = expression,
                 ColumnFormat = columnFormat,

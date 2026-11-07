@@ -53,6 +53,8 @@ namespace Mafesoft.PlainTextReport
         private readonly PlainTextReportColumn[] columns;
         private readonly Func<T, object>[] getters;
         private readonly bool[] multiLine;
+        private readonly IFormatProvider[] formatProviders;
+        private readonly CultureInfo culture;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -63,7 +65,9 @@ namespace Mafesoft.PlainTextReport
             this.options = options;
             this.columns = options.Columns.OrderBy(c => c.ColumnIndex).ToArray();
             this.getters = columns.Select(GetGetter).ToArray();
+            this.culture = options.Culture ?? CultureInfo.InvariantCulture;
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
+            this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
         }
 
         /// <summary>
@@ -225,7 +229,7 @@ namespace Mafesoft.PlainTextReport
             {
                 var column = columns[i];
                 var value = model == null ? null : getters[i](model);
-                var text = column.Converter.Convert(value, null, column.ColumnFormatProvider);
+                var text = column.Converter.Convert(value, null, formatProviders[i]);
                 cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }
             return cells;
@@ -525,7 +529,7 @@ namespace Mafesoft.PlainTextReport
 
                 if (!header.IsEmpty)
                 {
-                    lines.AddRange(GetBandLines(header, page.PrintableWidth, number, count, date, titleText));
+                    lines.AddRange(GetBandLines(header, page.PrintableWidth, number, count, date, titleText, culture));
                     if (header.ShowSeparator) lines.Add(new string(header.SeparatorChar, page.PrintableWidth));
                 }
 
@@ -535,7 +539,7 @@ namespace Mafesoft.PlainTextReport
                 if (!footer.IsEmpty)
                 {
                     if (footer.ShowSeparator) lines.Add(new string(footer.SeparatorChar, page.PrintableWidth));
-                    lines.AddRange(GetBandLines(footer, page.PrintableWidth, number, count, date, titleText));
+                    lines.AddRange(GetBandLines(footer, page.PrintableWidth, number, count, date, titleText, culture));
                 }
 
                 lines.AddRange(Enumerable.Repeat(string.Empty, page.MarginBottom));
@@ -565,7 +569,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Returns the lines of a band, with the placeholders replaced
         /// </summary>
-        private static List<string> GetBandLines(PlainTextReportPageBand band, int width, int number, int count, DateTime date, string title)
+        private static List<string> GetBandLines(PlainTextReportPageBand band, int width, int number, int count, DateTime date, string title, CultureInfo culture)
         {
             var left = SplitLines(band.Left);
             var center = SplitLines(band.Center);
@@ -576,9 +580,9 @@ namespace Mafesoft.PlainTextReport
             for (int i = 0; i < height; i++)
             {
                 var buffer = Enumerable.Repeat(' ', width).ToArray();
-                var c = Format(i < center.Length ? center[i] : null, number, count, date, title);
-                var l = Format(i < left.Length ? left[i] : null, number, count, date, title);
-                var r = Format(i < right.Length ? right[i] : null, number, count, date, title);
+                var c = Format(i < center.Length ? center[i] : null, number, count, date, title, culture);
+                var l = Format(i < left.Length ? left[i] : null, number, count, date, title, culture);
+                var r = Format(i < right.Length ? right[i] : null, number, count, date, title, culture);
                 Put(buffer, c, (width - Math.Min(c.Length, width)) / 2);
                 Put(buffer, l, 0);
                 Put(buffer, r, width - Math.Min(r.Length, width));
@@ -609,7 +613,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Replaces the placeholders {page}, {pages}, {title} and {date}, with an optional format
         /// </summary>
-        internal static string Format(string text, int number, int count, DateTime date, string title)
+        internal static string Format(string text, int number, int count, DateTime date, string title, CultureInfo culture)
         {
             if (string.IsNullOrEmpty(text))
             {
@@ -621,9 +625,9 @@ namespace Mafesoft.PlainTextReport
                 var format = match.Groups[2].Success ? match.Groups[2].Value : null;
                 switch (match.Groups[1].Value.ToLowerInvariant())
                 {
-                    case "page": return number.ToString(format, CultureInfo.InvariantCulture);
-                    case "pages": return count.ToString(format, CultureInfo.InvariantCulture);
-                    case "date": return date.ToString(string.IsNullOrEmpty(format) ? DefaultDateFormat : format, CultureInfo.InvariantCulture);
+                    case "page": return number.ToString(format, culture);
+                    case "pages": return count.ToString(format, culture);
+                    case "date": return date.ToString(string.IsNullOrEmpty(format) ? DefaultDateFormat : format, culture);
                     default: return title;
                 }
             });
@@ -722,15 +726,13 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Returns the getter of the column's property
         /// </summary>
-        private Func<T, object> GetGetter(PlainTextReportColumn column)
+        private static Func<T, object> GetGetter(PlainTextReportColumn column)
         {
-            if (column.ColumnNameInternal != null
-                && options.FasterProperties.TryGetValue(column.ColumnNameInternal, out var property)
-                && property.Getter != null)
+            if (column.Getter is Func<T, object> getter)
             {
-                return property.Getter;
+                return getter;
             }
-            throw new InvalidOperationException($"The property '{column.ColumnNameInternal}' of '{typeof(T).Name}' cannot be read.");
+            throw new InvalidOperationException($"The column '{column.ColumnName}' cannot read the values of '{typeof(T).Name}'.");
         }
 
         #endregion

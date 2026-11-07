@@ -31,9 +31,12 @@ namespace Mafesoft.PlainTextReport
 {
     using System;
     using System.Collections.Generic;
+    using System.Globalization;
     using System.IO;
     using System.Linq;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// PlainTextReport generates a plain text report from a collection of objects.
@@ -122,6 +125,102 @@ namespace Mafesoft.PlainTextReport
 
         private static readonly Encoding DefaultEncoding = new UTF8Encoding(false);
 
+        private const int BufferSize = 4096;
+
+        #region Write
+
+        /// <summary>
+        /// Writes the whole report, with the page breaks between the pages and a final line break
+        /// </summary>
+        /// <param name="writer">The writer; it is not closed</param>
+        public void WriteTo(TextWriter writer)
+        {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+            foreach (var chunk in GetChunks(GetPagesReport()))
+            {
+                writer.Write(chunk);
+            }
+            writer.Flush();
+        }
+
+        /// <summary>
+        /// Writes the whole report, with the page breaks between the pages and a final line break
+        /// </summary>
+        /// <param name="writer">The writer; it is not closed</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        public async Task WriteToAsync(TextWriter writer, CancellationToken cancellationToken = default)
+        {
+            if (writer == null)
+            {
+                throw new ArgumentNullException(nameof(writer));
+            }
+            foreach (var chunk in GetChunks(GetPagesReport()))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await writer.WriteAsync(chunk).ConfigureAwait(false);
+            }
+            await writer.FlushAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Writes the whole report in a stream, for example a <see cref="MemoryStream"/> or the body of an HTTP response
+        /// </summary>
+        /// <param name="stream">The stream; it is not closed</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default. The BOM of the encoding, if any,
+        /// is written only at the beginning of a seekable stream.</param>
+        public void WriteTo(Stream stream, Encoding encoding = null)
+        {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+            using (var writer = new StreamWriter(stream, encoding ?? DefaultEncoding, BufferSize, leaveOpen: true))
+            {
+                WriteTo(writer);
+            }
+        }
+
+        /// <summary>
+        /// Writes the whole report in a stream, for example a <see cref="MemoryStream"/> or the body of an HTTP response
+        /// </summary>
+        /// <param name="stream">The stream; it is not closed</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default. The BOM of the encoding, if any,
+        /// is written only at the beginning of a seekable stream.</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        public async Task WriteToAsync(Stream stream, Encoding encoding = null, CancellationToken cancellationToken = default)
+        {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+            using (var writer = new StreamWriter(stream, encoding ?? DefaultEncoding, BufferSize, leaveOpen: true))
+            {
+                await WriteToAsync(writer, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Returns the text of the report a page at a time: every page after the first one
+        /// starts with the page break, and the report ends with a line break
+        /// </summary>
+        private IEnumerable<string> GetChunks(PlainTextReportPage[] pages)
+        {
+            var pageBreak = Options.Page?.PageBreak ?? string.Empty;
+            for (int i = 0; i < pages.Length; i++)
+            {
+                var text = pages[i].ToString();
+                yield return i == 0 ? text : Environment.NewLine + pageBreak + text;
+            }
+            yield return Environment.NewLine;
+        }
+
+        #endregion
+
+        #region Save
+
         /// <summary>
         /// Saves the whole report in a file, with the page breaks between the pages
         /// </summary>
@@ -130,6 +229,80 @@ namespace Mafesoft.PlainTextReport
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
         /// <returns>The absolute path of the file</returns>
         public string SaveToFile(string path, Encoding encoding = null)
+        {
+            var fullPath = PrepareFile(path);
+            using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize))
+            {
+                WriteTo(stream, encoding);
+            }
+            return fullPath;
+        }
+
+        /// <summary>
+        /// Saves the whole report in a file, with the page breaks between the pages
+        /// </summary>
+        /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
+        /// and its directory is created when missing</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        /// <returns>The absolute path of the file</returns>
+        public async Task<string> SaveToFileAsync(string path, Encoding encoding = null, CancellationToken cancellationToken = default)
+        {
+            var fullPath = PrepareFile(path);
+            using (var stream = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true))
+            {
+                await WriteToAsync(stream, encoding, cancellationToken).ConfigureAwait(false);
+            }
+            return fullPath;
+        }
+
+        /// <summary>
+        /// Saves every page in its own file
+        /// </summary>
+        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
+        /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <returns>The absolute paths of the files, in page order</returns>
+        public string[] SavePagesToFiles(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null)
+        {
+            var pages = GetPagesReport();
+            var paths = PreparePageFiles(directory, fileNamePattern, pages);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                File.WriteAllText(paths[i], pages[i] + Environment.NewLine, encoding ?? DefaultEncoding);
+            }
+            return paths;
+        }
+
+        /// <summary>
+        /// Saves every page in its own file
+        /// </summary>
+        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
+        /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <param name="cancellationToken">Stops the writing between two files</param>
+        /// <returns>The absolute paths of the files, in page order</returns>
+        public async Task<string[]> SavePagesToFilesAsync(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null, CancellationToken cancellationToken = default)
+        {
+            var pages = GetPagesReport();
+            var paths = PreparePageFiles(directory, fileNamePattern, pages);
+            for (int i = 0; i < pages.Length; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using (var stream = new FileStream(paths[i], FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true))
+                using (var writer = new StreamWriter(stream, encoding ?? DefaultEncoding, BufferSize))
+                {
+                    await writer.WriteAsync(pages[i] + Environment.NewLine).ConfigureAwait(false);
+                    await writer.FlushAsync().ConfigureAwait(false);
+                }
+            }
+            return paths;
+        }
+
+        /// <summary>
+        /// Checks the path, creates its directory and returns the absolute path
+        /// </summary>
+        private static string PrepareFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -147,37 +320,32 @@ namespace Mafesoft.PlainTextReport
             {
                 Directory.CreateDirectory(directory);
             }
-            File.WriteAllText(fullPath, GetTextReport() + Environment.NewLine, encoding ?? DefaultEncoding);
             return fullPath;
         }
 
         /// <summary>
-        /// Saves every page in its own file
+        /// Checks the arguments, creates the directory and returns the absolute path of every page
         /// </summary>
-        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
-        /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
-        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <returns>The absolute paths of the files, in page order</returns>
-        public string[] SavePagesToFiles(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null)
+        private string[] PreparePageFiles(string directory, string fileNamePattern, PlainTextReportPage[] pages)
         {
             if (string.IsNullOrWhiteSpace(directory))
             {
                 throw new ArgumentException("The directory is required.", nameof(directory));
             }
-            directory = Path.GetFullPath(directory);
             if (string.IsNullOrWhiteSpace(fileNamePattern))
             {
                 throw new ArgumentException("The file name pattern is required.", nameof(fileNamePattern));
             }
 
-            var pages = GetPagesReport();
+            directory = Path.GetFullPath(directory);
             var date = Options.Page?.Date ?? DateTime.Now;
             var title = Options.IsMultiLineTitle ? string.Join(" ", Options.MultiLineTitle) : Options.Title ?? string.Empty;
+            var culture = Options.Culture ?? CultureInfo.InvariantCulture;
             var invalidChars = Path.GetInvalidFileNameChars();
 
             var paths = pages.Select(page =>
             {
-                var name = PlainTextReportRenderer<T>.Format(fileNamePattern, page.Number, page.Count, date, title);
+                var name = PlainTextReportRenderer<T>.Format(fileNamePattern, page.Number, page.Count, date, title, culture);
                 name = new string(name.Select(c => invalidChars.Contains(c) ? '_' : c).ToArray());
                 return Path.Combine(directory, name);
             }).ToArray();
@@ -188,11 +356,9 @@ namespace Mafesoft.PlainTextReport
             }
 
             Directory.CreateDirectory(directory);
-            for (int i = 0; i < pages.Length; i++)
-            {
-                File.WriteAllText(paths[i], pages[i] + Environment.NewLine, encoding ?? DefaultEncoding);
-            }
             return paths;
         }
+
+        #endregion
     }
 }

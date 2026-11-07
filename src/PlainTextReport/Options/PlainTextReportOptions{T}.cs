@@ -29,10 +29,6 @@
 
 namespace Mafesoft.PlainTextReport
 {
-    using Mafesoft.PlainTextReport.Helpers;
-    using System;
-    using System.Collections.Concurrent;
-
     /// <summary>
     /// PlainTextReport Options definition
     /// </summary>
@@ -45,27 +41,11 @@ namespace Mafesoft.PlainTextReport
         public PlainTextReportOptionsColumns<T> Columns { get; internal set; }
 
         /// <summary>
-        /// Object's faster properties
-        /// </summary>
-        internal ConcurrentDictionary<string, PropertyHelper<T>> FasterProperties { get; set; }
-
-        /// <summary>
         /// Create a PlainTextReportOptions
         /// </summary>
         public PlainTextReportOptions()
         {
             Columns = new PlainTextReportOptionsColumns<T>();
-            this.SetOptionPropertiesFromType(typeof(T));
         }
-
-        /// <summary>
-        /// Set Option Properties From Type
-        /// </summary>
-        /// <param name="type"></param>
-        private void SetOptionPropertiesFromType(Type type)
-        {
-            FasterProperties = PropertyHelper<T>.GetPropertiesExpressionTree(type);
-        }
-
     }
 }

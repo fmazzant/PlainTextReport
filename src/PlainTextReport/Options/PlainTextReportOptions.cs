@@ -29,6 +29,8 @@
 
 namespace Mafesoft.PlainTextReport
 {
+    using System.Globalization;
+
     /// <summary>
     ///  PlainTextReport Options abstract definition
     /// </summary>
@@ -90,6 +92,12 @@ namespace Mafesoft.PlainTextReport
         /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
         public int Width { get; set; }
+
+        /// <summary>
+        /// Culture used to format the values (numbers, dates, the column formats) and the {date} placeholder.
+        /// When null the invariant culture is used.
+        /// </summary>
+        public CultureInfo Culture { get; set; }
 
         /// <summary>
         /// Page settings. When set, the report is split in pages with header and footer.

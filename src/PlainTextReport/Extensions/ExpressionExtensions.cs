@@ -30,48 +30,103 @@
 namespace Mafesoft.PlainTextReport.Extensions
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Linq.Expressions;
+    using System.Reflection;
 
     /// <summary>
-    /// Expression extensions
+    /// Reads the properties and the fields selected by the column expressions
     /// </summary>
-    public static class ExpressionExtensions
+    internal static class ExpressionExtensions
     {
         /// <summary>
-        /// Returns property name
+        /// Returns the name of the selected member: "Name" for m => m.Name,
+        /// "Customer.Name" for m => m.Customer.Name
         /// </summary>
-        /// <param name="expression"></param>
+        /// <param name="expression">A lambda expression that selects a property or a field</param>
         /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        public static string GetPropertyName(this Expression expression)
+        public static string GetPropertyName(this LambdaExpression expression)
         {
-            if (expression is LambdaExpression lambdaExpression)
+            return string.Join(".", GetMemberPath(expression).Select(member => member.Name));
+        }
+
+        /// <summary>
+        /// Compiles a getter of the selected member. When an intermediate value is null
+        /// (m.Customer in m => m.Customer.Name) the getter returns null.
+        /// </summary>
+        /// <typeparam name="M">The model type</typeparam>
+        /// <param name="expression">A lambda expression that selects a property or a field</param>
+        /// <returns></returns>
+        public static Func<M, object> CreateGetter<M>(this LambdaExpression expression)
+        {
+            var path = GetMemberPath(expression);
+            var model = Expression.Parameter(typeof(M), "model");
+            var body = Access(model, path, 0);
+            return Expression.Lambda<Func<M, object>>(body, model).Compile();
+        }
+
+        /// <summary>
+        /// Returns the members selected by the expression, from the model to the value
+        /// </summary>
+        private static List<MemberInfo> GetMemberPath(LambdaExpression expression)
+        {
+            if (expression == null)
             {
-                if (lambdaExpression.Body.NodeType == ExpressionType.MemberAccess)
-                {
-                    return GetPropertyName(lambdaExpression.Body);
-                }
+                throw new ArgumentNullException(nameof(expression));
             }
 
-            if (expression is MemberExpression memberExpression)
+            var path = new List<MemberInfo>();
+            var current = StripConvert(expression.Body);
+            while (current is MemberExpression member)
             {
-                if (memberExpression.Expression.NodeType == ExpressionType.MemberAccess)
+                if (!(member.Member is PropertyInfo) && !(member.Member is FieldInfo))
                 {
-                    throw new ArgumentException(string.Format("Cannot interpret member from {0}", expression));
+                    break;
                 }
-                return memberExpression.Member.Name;
+                path.Insert(0, member.Member);
+                current = member.Expression == null ? null : StripConvert(member.Expression);
             }
 
-            if (expression is UnaryExpression unaryExpression)
+            if (path.Count == 0 || current != expression.Parameters[0])
             {
-                if (unaryExpression.NodeType != ExpressionType.Convert)
-                {
-                    throw new ArgumentException(string.Format("Cannot interpret member from {0}", expression));
-                }
-                return GetPropertyName(unaryExpression.Operand);
+                throw new ArgumentException($"The expression {expression} must select a property or a field of the model, for example m => m.Name or m => m.Customer.Name.", nameof(expression));
+            }
+            return path;
+        }
+
+        /// <summary>
+        /// Builds the access to the members, with a null check on every intermediate value
+        /// </summary>
+        private static Expression Access(Expression instance, List<MemberInfo> path, int index)
+        {
+            var value = Expression.MakeMemberAccess(instance, path[index]);
+            if (index == path.Count - 1)
+            {
+                return Expression.Convert(value, typeof(object));
             }
 
-            throw new ArgumentException(string.Format("Could not determine member from {0}", expression));
+            var next = Access(value, path, index + 1);
+            if (value.Type.IsValueType && Nullable.GetUnderlyingType(value.Type) == null)
+            {
+                return next;
+            }
+            return Expression.Condition(
+                Expression.Equal(value, Expression.Constant(null, value.Type)),
+                Expression.Constant(null, typeof(object)),
+                next);
+        }
+
+        /// <summary>
+        /// Removes the conversions, for example the boxing of m => (object)m.Id
+        /// </summary>
+        private static Expression StripConvert(Expression expression)
+        {
+            while (expression.NodeType == ExpressionType.Convert || expression.NodeType == ExpressionType.ConvertChecked)
+            {
+                expression = ((UnaryExpression)expression).Operand;
+            }
+            return expression;
         }
     }
 }

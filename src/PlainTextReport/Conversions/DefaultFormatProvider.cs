@@ -33,36 +33,43 @@ namespace Mafesoft.PlainTextReport.Conversions
     using System.Globalization;
 
     /// <summary>
-    /// Formats the values with the format of the column, in the invariant culture
+    /// Formats the values with the format of the column, in the culture of the report
     /// </summary>
     internal sealed class DefaultFormatProvider : IFormatProvider, ICustomFormatter
     {
         /// <summary>
         /// Column's format
         /// </summary>
-        public string CustomFormat { get; set; }
+        public string CustomFormat { get; }
+
+        /// <summary>
+        /// The culture of the values
+        /// </summary>
+        public CultureInfo Culture { get; }
 
         /// <summary>
         /// Create Default Format Provider
         /// </summary>
-        /// <param name="customFormat"></param>
-        public DefaultFormatProvider(string customFormat)
+        /// <param name="customFormat">The format of the column, for example N2 or dd/MM/yyyy</param>
+        /// <param name="culture">The culture; the invariant culture when null</param>
+        public DefaultFormatProvider(string customFormat, CultureInfo culture = null)
         {
             CustomFormat = customFormat;
+            Culture = culture ?? CultureInfo.InvariantCulture;
         }
 
         /// <summary>
-        /// Get format
+        /// Returns the formatter for string.Format and the culture's formats for the other requests
         /// </summary>
         /// <param name="formatType"></param>
         /// <returns></returns>
         public object GetFormat(Type formatType)
         {
-            return this;
+            return formatType == typeof(ICustomFormatter) ? this : Culture.GetFormat(formatType);
         }
 
         /// <summary>
-        /// Format
+        /// Formats the value with the format of the column
         /// </summary>
         /// <param name="format"></param>
         /// <param name="arg"></param>
@@ -72,7 +79,7 @@ namespace Mafesoft.PlainTextReport.Conversions
         {
             if (arg is IFormattable formattable)
             {
-                return formattable.ToString(CustomFormat, CultureInfo.InvariantCulture);
+                return formattable.ToString(CustomFormat, Culture);
             }
             return arg?.ToString() ?? string.Empty;
         }

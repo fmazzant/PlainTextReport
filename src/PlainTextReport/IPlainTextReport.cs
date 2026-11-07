@@ -30,7 +30,10 @@
 namespace Mafesoft.PlainTextReport
 {
     using System.Collections.Generic;
+    using System.IO;
     using System.Text;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     /// <summary>
     /// IPlainTextReport interface
@@ -64,6 +67,34 @@ namespace Mafesoft.PlainTextReport
         PlainTextReportPage[] GetPagesReport();
 
         /// <summary>
+        /// Writes the whole report, with the page breaks between the pages and a final line break
+        /// </summary>
+        /// <param name="writer">The writer; it is not closed</param>
+        void WriteTo(TextWriter writer);
+
+        /// <summary>
+        /// Writes the whole report, with the page breaks between the pages and a final line break
+        /// </summary>
+        /// <param name="writer">The writer; it is not closed</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        Task WriteToAsync(TextWriter writer, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Writes the whole report in a stream, for example a MemoryStream or the body of an HTTP response
+        /// </summary>
+        /// <param name="stream">The stream; it is not closed</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        void WriteTo(Stream stream, Encoding encoding = null);
+
+        /// <summary>
+        /// Writes the whole report in a stream, for example a MemoryStream or the body of an HTTP response
+        /// </summary>
+        /// <param name="stream">The stream; it is not closed</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        Task WriteToAsync(Stream stream, Encoding encoding = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Saves the whole report in a file, with the page breaks between the pages
         /// </summary>
         /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
@@ -80,5 +111,25 @@ namespace Mafesoft.PlainTextReport
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
         /// <returns>The absolute paths of the files, in page order</returns>
         string[] SavePagesToFiles(string directory, string fileNamePattern = "page-{page:000}.txt", Encoding encoding = null);
+
+        /// <summary>
+        /// Saves the whole report in a file, with the page breaks between the pages
+        /// </summary>
+        /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
+        /// and its directory is created when missing</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        /// <returns>The absolute path of the file</returns>
+        Task<string> SaveToFileAsync(string path, Encoding encoding = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Saves every page in its own file
+        /// </summary>
+        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
+        /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
+        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
+        /// <param name="cancellationToken">Stops the writing between two files</param>
+        /// <returns>The absolute paths of the files, in page order</returns>
+        Task<string[]> SavePagesToFilesAsync(string directory, string fileNamePattern = "page-{page:000}.txt", Encoding encoding = null, CancellationToken cancellationToken = default);
     }
 }

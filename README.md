@@ -78,10 +78,13 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `HeaderSeparator` | `'-'` | The character used to draw the line below the header. |
 | `Width` | `0` | The maximum width of the report, in characters. `0` means no limit. |
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
+| `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 
 ### Columns
 
-A column is defined by a property of the model. `AddColumn` has several overloads, so a column can also specify:
+A column is defined by a property or a field of the model, also nested: `m => m.Customer.Address.City`. When an intermediate value is `null` (an order without a customer) the cell is empty. The default name of a nested column is its path, `Customer.Address.City`; give it a `columnName` to print something else. Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an `IValueConverter` instead.
+
+`AddColumn` has several overloads, so a column can also specify:
 
 - a name (`columnName`) or a position (`columnIndex`); the columns are printed in `columnIndex` order;
 - a format string (`columnFormat`), for example `"dd/MM/yyyy"` for dates or `"N2"` for numbers;
@@ -89,7 +92,18 @@ A column is defined by a property of the model. `AddColumn` has several overload
 - a custom `IValueConverter`;
 - a style (`PlainTextReportColumnStyle`).
 
-Values are formatted with the invariant culture, unless an `IFormatProvider` is given.
+### Culture
+
+Values are formatted with the invariant culture, unless `options.Culture` is set or the column has its own `IFormatProvider`:
+
+```c#
+options.Culture = new CultureInfo("it-IT");
+options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");                // 1.234,50
+options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd MMMM yyyy");  // 02 gennaio 2024
+options.Columns.AddColumn(m => m.UpdatedOn, new CultureInfo("en-US"));                    // the column's provider wins
+```
+
+The culture is also used by the `{date}` placeholder of header and footer, and it is passed to the custom converters as `provider`.
 
 ### Column style
 
@@ -296,6 +310,31 @@ report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000
 - Existing files are overwritten, and missing directories are created.
 - The file name pattern must contain `{page}` when there is more than one page; characters that are not valid in a file name are replaced by `_`.
 - Without page settings `SavePagesToFiles` writes a single file.
+- `SaveToFileAsync` and `SavePagesToFilesAsync` do the same asynchronously, with an optional `CancellationToken`.
+
+## Write to a stream or a writer
+
+The report can be written to any `Stream` or `TextWriter`, for example the body of an HTTP response, without a file:
+
+```c#
+// ASP.NET Core
+app.MapGet("/report.txt", async (HttpResponse response) =>
+{
+    response.ContentType = "text/plain; charset=utf-8";
+    await report.Bind(models).WriteToAsync(response.Body);
+});
+
+// a MemoryStream, with a different encoding
+using var stream = new MemoryStream();
+report.Bind(models).WriteTo(stream, Encoding.GetEncoding(850));
+
+// a TextWriter
+report.Bind(models).WriteTo(Console.Out);
+```
+
+- The text is the same as `GetTextReport()`, followed by a line break, the same as `SaveToFile`.
+- The stream and the writer are flushed but not closed.
+- The BOM of the encoding, if any, is written only at the beginning of a seekable stream.
 
 A complete example, with and without pages, is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
 
