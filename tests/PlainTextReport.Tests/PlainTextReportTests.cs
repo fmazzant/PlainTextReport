@@ -1,24 +1,8 @@
 using Mafesoft.PlainTextReport;
-using Mafesoft.PlainTextReport.Conversions;
 using Xunit;
 
 namespace Mafesoft.PlainTextReport.Tests
 {
-    public class Product
-    {
-        public int Id { get; set; }
-        public string? Name { get; set; }
-        public decimal Price { get; set; }
-        public DateTime CreatedOn { get; set; }
-        public bool Enabled { get; set; }
-    }
-
-    public class YesNoConverter : IValueConverter
-    {
-        public string Convert(object value, object parameter, IFormatProvider provider)
-            => value is bool b && b ? "Yes" : "No";
-    }
-
     public class PlainTextReportTests
     {
         private static readonly Product[] Products =

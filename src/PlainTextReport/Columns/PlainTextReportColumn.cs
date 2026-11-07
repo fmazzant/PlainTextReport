@@ -107,52 +107,6 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Default Format Provider definition
-        /// </summary>
-        internal sealed class DefaultFormatProvider : IFormatProvider, ICustomFormatter
-        {
-            /// <summary>
-            /// Column's format
-            /// </summary>
-            public string CustomFormat { get; set; }
-
-            /// <summary>
-            /// Create Default Format Provider
-            /// </summary>
-            /// <param name="customFormat"></param>
-            public DefaultFormatProvider(string customFormat)
-            {
-                CustomFormat = customFormat;
-            }
-
-            /// <summary>
-            /// Get format
-            /// </summary>
-            /// <param name="formatType"></param>
-            /// <returns></returns>
-            public object GetFormat(Type formatType)
-            {
-                return this;
-            }
-
-            /// <summary>
-            /// Format
-            /// </summary>
-            /// <param name="format"></param>
-            /// <param name="arg"></param>
-            /// <param name="formatProvider"></param>
-            /// <returns></returns>
-            public string Format(string format, object arg, IFormatProvider formatProvider)
-            {
-                if (arg is IFormattable formattable)
-                {
-                    return formattable.ToString(CustomFormat, CultureInfo.InvariantCulture);
-                }
-                return arg?.ToString() ?? string.Empty;
-            }
-        }
-
-        /// <summary>
         /// Column's style
         /// </summary>
         public PlainTextReportColumnStyle Style { get; set; } = new PlainTextReportColumnStyle();

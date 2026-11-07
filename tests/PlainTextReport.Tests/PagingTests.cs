@@ -3,12 +3,6 @@ using Xunit;
 
 namespace Mafesoft.PlainTextReport.Tests
 {
-    public class Item
-    {
-        public int Id { get; set; }
-        public string? Name { get; set; }
-    }
-
     public class PagingTests
     {
         private static Item[] Items(int count) =>

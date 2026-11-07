@@ -1,5 +1,4 @@
 using Mafesoft.PlainTextReport;
-using Mafesoft.PlainTextReport.Conversions;
 
 var report = new PlainTextReport<Model>(options =>
 {
@@ -101,18 +100,3 @@ var outputDirectory = Path.Combine(Path.GetTempPath(), "PlainTextReportSample");
 var reportFile = pagedReport.SaveToFile(Path.Combine(outputDirectory, "report.txt"));
 var files = pagedReport.SavePagesToFiles(Path.Combine(outputDirectory, "pages"), "page-{page:000}.txt");
 Console.WriteLine($"Saved {reportFile} and {files.Length} pages in {Path.GetDirectoryName(files[0])}");
-
-public class Model
-{
-    public int Id { get; set; }
-    public string? Name { get; set; }
-    public decimal Price { get; set; }
-    public DateTime CreatedOn { get; set; }
-    public bool Enabled { get; set; }
-}
-
-public class CustomBooleanConverter : IValueConverter
-{
-    public string Convert(object value, object parameter, IFormatProvider provider)
-        => value is bool boolValue && boolValue ? "Yes" : "No";
-}

@@ -1,4 +1,4 @@
-﻿/// <summary>
+/// <summary>
 ///
 /// The MIT License (MIT)
 ///
@@ -34,56 +34,6 @@ namespace Mafesoft.PlainTextReport
     using System.IO;
     using System.Linq;
     using System.Text;
-
-    /// <summary>
-    /// IPlainTextReport interface
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public interface IPlainTextReport<T> where T : class
-    {
-        /// <summary>
-        /// Bind the collection
-        /// </summary>
-        /// <param name="values"></param>
-        /// <returns></returns>
-        IPlainTextReport<T> Bind(IEnumerable<T> values);
-
-        /// <summary>
-        /// Generate text report
-        /// </summary>
-        /// <returns></returns>
-        string GetTextReport();
-
-        /// <summary>
-        /// Generate text line report
-        /// </summary>
-        /// <returns></returns>
-        string[] GetTextLinesReport();
-
-        /// <summary>
-        /// Generate the report split in pages
-        /// </summary>
-        /// <returns></returns>
-        PlainTextReportPage[] GetPagesReport();
-
-        /// <summary>
-        /// Saves the whole report in a file, with the page breaks between the pages
-        /// </summary>
-        /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
-        /// and its directory is created when missing</param>
-        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <returns>The absolute path of the file</returns>
-        string SaveToFile(string path, Encoding encoding = null);
-
-        /// <summary>
-        /// Saves every page in its own file
-        /// </summary>
-        /// <param name="directory">The directory, absolute or relative to the current directory; it is created when missing</param>
-        /// <param name="fileNamePattern">The file name, with the placeholders {page}, {pages}, {title} and {date}</param>
-        /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <returns>The absolute paths of the files, in page order</returns>
-        string[] SavePagesToFiles(string directory, string fileNamePattern = "page-{page:000}.txt", Encoding encoding = null);
-    }
 
     /// <summary>
     /// PlainTextReport generates a plain text report from a collection of objects.

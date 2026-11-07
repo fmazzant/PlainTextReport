@@ -305,15 +305,6 @@ A complete example, with and without pages, is available in [samples/PlainTextRe
 dotnet test src/PlainTextReport.sln
 ```
 
-## Release
-
-The package is published on NuGet by the [nuget workflow](.github/workflows/nuget.yml) when a tag `v*` is pushed. The package version is the tag without the `v`:
-
-```
-git tag v1.0.0-rc2
-git push origin v1.0.0-rc2
-```
-
 ## Benchmark
 
 The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows. Run it in Release mode:
