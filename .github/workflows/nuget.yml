@@ -19,6 +19,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    # Must match the Environment of the NuGet Trusted Publishing policy
+    environment: production
 
     steps:
     - uses: actions/checkout@v4
