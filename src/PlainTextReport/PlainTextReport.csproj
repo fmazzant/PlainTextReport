@@ -18,7 +18,7 @@
     <Title>Mafesoft.PlainTextReport</Title>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Product>PlainTextReport</Product>
-    <Version>1.0.0</Version>
+    <Version>1.0.0.1</Version>
   </PropertyGroup>
 
   <!-- XML documentation, so the comments are shown by IntelliSense -->
