@@ -16,12 +16,12 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: |
-          8.0.x
-          10.0.x
+        # .NET 8 runtime for the net8.0 tests; the SDK version comes from global.json
+        dotnet-version: 8.0.x
+        global-json-file: global.json
 
     - name: Restore dependencies
-      run: dotnet restore src/PlainTextReport.sln
+      run: dotnet restore src/PlainTextReport.sln --verbosity normal
 
     - name: Build
       run: dotnet build --no-restore -c Release src/PlainTextReport.sln
