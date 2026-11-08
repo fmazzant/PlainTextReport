@@ -39,69 +39,69 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Report's title
         /// </summary>
-        public string Title { get; set; }
+        string Title { get; set; }
 
         /// <summary>
         /// Report's multi title
         /// </summary>
-        public string[] MultiLineTitle { get; set; }
+        string[] MultiLineTitle { get; set; }
 
         /// <summary>
         /// Returns is report's title is multi-line
         /// </summary>
-        public bool IsMultiLineTitle { get; }
+        bool IsMultiLineTitle { get; }
 
         /// <summary>
         /// Multi-line rows: a value longer than its column wraps on more lines, and the line breaks
         /// of a value start a new line. When false a value is kept on one line and truncated with an ellipsis.
         /// A column can override it with <see cref="PlainTextReportColumnStyle.MultiLine"/>.
         /// </summary>
-        public bool MultiLineRows { get; set; }
+        bool MultiLineRows { get; set; }
 
         /// <summary>
         /// Show Title
         /// </summary>
-        public bool ShowTitle { get; set; }
+        bool ShowTitle { get; set; }
 
         /// <summary>
         /// Show header columns
         /// </summary>
-        public bool ShowHeader { get; set; }
+        bool ShowHeader { get; set; }
 
         /// <summary>
         /// Show header separator
         /// </summary>
-        public bool ShowHeaderSeparator { get; set; }
+        bool ShowHeaderSeparator { get; set; }
 
         /// <summary>
         /// Show column separator
         /// </summary>
-        public bool ShowColumnSeparator { get; set; }
+        bool ShowColumnSeparator { get; set; }
 
         /// <summary>
         /// Character used to separate the columns
         /// </summary>
-        public char ColumnSeparator { get; set; }
+        char ColumnSeparator { get; set; }
 
         /// <summary>
         /// Character used to draw the line below the header
         /// </summary>
-        public char HeaderSeparator { get; set; }
+        char HeaderSeparator { get; set; }
 
         /// <summary>
         /// Maximum report width, in characters. Zero means no limit.
         /// </summary>
-        public int Width { get; set; }
+        int Width { get; set; }
 
         /// <summary>
         /// Culture used to format the values (numbers, dates, the column formats) and the {date} placeholder.
         /// When null the invariant culture is used.
         /// </summary>
-        public CultureInfo Culture { get; set; }
+        CultureInfo Culture { get; set; }
 
         /// <summary>
         /// Page settings. When set, the report is split in pages with header and footer.
         /// </summary>
-        public PlainTextReportPageSettings Page { get; set; }
+        PlainTextReportPageSettings Page { get; set; }
     }
 }
