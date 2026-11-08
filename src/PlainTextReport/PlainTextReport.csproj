@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net5.0;net6.0;net7.0;net8.0;net452;net462;net472;net48</TargetFrameworks>
-    <LangVersion>preview</LangVersion>
+    <TargetFrameworks>net5.0;net6.0;net7.0;net8.0;net10.0;net452;net462;net472;net48</TargetFrameworks>
     <NeutralLanguage>en</NeutralLanguage>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <Description>PlainTextReport is a .NET library to generate a plain text report from a collection of objects.</Description>
     <PackageProjectUrl>https://github.com/fmazzant/PlainTextReport</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fmazzant/PlainTextReport</RepositoryUrl>
@@ -18,11 +18,29 @@
     <Title>Mafesoft.PlainTextReport</Title>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Product>PlainTextReport</Product>
-    <Version>1.0.0-rc1</Version>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <!-- XML documentation, so the comments are shown by IntelliSense -->
+  <PropertyGroup>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Symbols package (.snupkg) and Source Link, to step into the library while debugging -->
+  <PropertyGroup>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\..\LICENSE">
+    <InternalsVisibleTo Include="PlainTextReport.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\assets\icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>

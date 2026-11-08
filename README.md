@@ -54,7 +54,7 @@ var report = new PlainTextReport<Model>(options =>
 
 The result looks like this:
 
-```
+```text
                My first plain text report
 
 Id | Name                 | Price | CreatedOn  | Enabled
@@ -77,10 +77,18 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `ColumnSeparator` | `'\|'` | The character used to separate the columns. |
 | `HeaderSeparator` | `'-'` | The character used to draw the line below the header. |
 | `Width` | `0` | The maximum width of the report, in characters. `0` means no limit. |
+| `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
+| `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 
 ### Columns
 
-A column is defined by a property of the model. `AddColumn` has several overloads, so a column can also specify:
+A column is defined by a property or a field of the model, also nested: `m => m.Customer.Address.City`.
+
+When an intermediate value is `null` (an order without a customer) the cell is empty. The default name of a nested column is its path, `Customer.Address.City`; give it a `columnName` to print something else.
+
+Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an `IValueConverter` instead.
+
+`AddColumn` has several overloads, so a column can also specify:
 
 - a name (`columnName`) or a position (`columnIndex`); the columns are printed in `columnIndex` order;
 - a format string (`columnFormat`), for example `"dd/MM/yyyy"` for dates or `"N2"` for numbers;
@@ -88,21 +96,172 @@ A column is defined by a property of the model. `AddColumn` has several overload
 - a custom `IValueConverter`;
 - a style (`PlainTextReportColumnStyle`).
 
-Values are formatted with the invariant culture, unless an `IFormatProvider` is given.
+### Culture
+
+Values are formatted with the invariant culture, unless `options.Culture` is set or the column has its own `IFormatProvider`:
+
+```c#
+options.Culture = new CultureInfo("it-IT");
+options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");                // 1.234,50
+options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd MMMM yyyy");  // 02 gennaio 2024
+options.Columns.AddColumn(m => m.UpdatedOn, new CultureInfo("en-US"));                    // the column's provider wins
+```
+
+The culture is also used by the `{date}` placeholder of header and footer, and it is passed to the custom converters as `provider`.
 
 ### Column style
 
 | Property | Default | Description |
 | --- | --- | --- |
-| `Width` | `null` | Fixed width of the column. When `null` the width fits the header and the longest value. |
+| `Caption` | `null` | The text printed in the header. When `null` it is the column name (`columnName`, or the name of the property). |
+| `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
+| `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
+
+The caption can be set together with the rest of the style:
+
+```c#
+options.Columns.AddColumn(m => m.Price, style =>
+{
+    style.Caption = "Prezzo";
+    style.Width = 10;
+    style.Alignment = PlainTextReportAlignment.Right;
+}, columnFormat: "N2");
+```
+
+### Column width in characters or percentage
+
+`Width` is a `ColumnWidth`: it can be set with an `int` (characters) or with a string (`"20"` characters, `"50%"` percentage). `ColumnWidth.Characters(20)` and `ColumnWidth.Percent(50)` do the same.
+
+```c#
+options.Columns.AddColumn(m => m.Id, style => style.Width = 6);          // 6 characters
+options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");   // all the free space
+options.Columns.AddColumn(m => m.Notes, style => style.Width = "50%");   // half of the free space
+```
+
+A percentage is a share of the **free space**: the report width (`options.Width`, or the printable width of the page) minus the column separators and the columns with a fixed or automatic width.
+
+- `100%` takes all the free space, so the column grows until the table fills the report width.
+- When the percentages add up to more than 100% they are scaled down proportionally: two columns at `100%` get 50% each, `100%` and `50%` get two thirds and one third.
+- Below 100% the rest of the free space stays empty: one column at `50%` takes half of it.
+- Without a report width (no `options.Width` and no page settings) there is no free space to share, so a percentage column is sized like an automatic column.
 
 ### Width and truncation
 
 When `Width` is set and the columns don't fit, the report shrinks the automatic text columns first, then the automatic numeric columns, and the fixed-width columns last. A value that doesn't fit its column ends with `…`, so a truncated value is always visible.
 
 Line breaks and tabs in the values are replaced by spaces, and trailing spaces are removed from every line.
+
+### Multi-line rows
+
+With `options.MultiLineRows = true` a value longer than its column is not truncated: it wraps on more lines, breaking between the words (a word longer than the column is split). The line breaks of a value start a new line, and the row is as tall as its tallest cell. A single column can turn it on or off with `style.MultiLine`.
+
+```c#
+options.MultiLineRows = true;
+options.Columns.AddColumn(m => m.Id, style => { });
+options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
+options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+```
+
+```text
+Id | Name             | Price
+---+------------------+------
+ 1 | Red apples from  |  2.50
+   | the Italian Alps |
+ 2 | Bananas          |  1.20
+   | imported         |
+```
+
+With pages, the lines of a row are kept on the same page; only a row taller than a whole page continues on the next one.
+
+## Pages
+
+Set `options.Page` to split the report in pages ready to print, with a header and a footer on every page:
+
+```c#
+var report = new PlainTextReport<Model>(options =>
+{
+    options.Title = "Products";
+    options.ShowHeader = true;
+    options.ShowHeaderSeparator = true;
+    options.ShowColumnSeparator = true;
+
+    options.Page = new PlainTextReportPageSettings(PaperSize.A4, PageOrientation.Portrait)
+    {
+        MarginLeft = 4,
+        MarginRight = 4,
+        MarginTop = 2,
+        MarginBottom = 2,
+    };
+    options.Page.Header.Left = "{title}";
+    options.Page.Header.Right = "{date:dd/MM/yyyy}";
+    options.Page.Header.ShowSeparator = true;
+    options.Page.Footer.Center = "Page {page} of {pages}";
+    options.Page.Footer.ShowSeparator = true;
+
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");
+});
+```
+
+Every page has exactly the height of the paper, so the footer is always at the bottom:
+
+```text
+    Products                                                        07/11/2026
+    --------------------------------------------------------------------------
+     Id | Name
+    ----+---------------------------------------------------------------------
+      1 | Product 1
+      2 | Product 2
+    ...
+    --------------------------------------------------------------------------
+                                   Page 1 of 3
+```
+
+### Paper size and orientation
+
+A plain text page is measured in characters and lines, so the paper size is converted with the printer pitch: `CharactersPerInch` (default `10`) and `LinesPerInch` (default `6`).
+
+The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. `PaperSize.Custom(name, width, height)` creates any other size in millimeters. Each paper can be used in `Portrait` or `Landscape`.
+
+| Paper | Size (mm) | Portrait (chars x lines) | Landscape (chars x lines) |
+| --- | --- | --- | --- |
+| A3 | 297 x 420 | 116 x 99 | 165 x 70 |
+| A4 | 210 x 297 | 82 x 70 | 116 x 49 |
+| A5 | 148 x 210 | 58 x 49 | 82 x 34 |
+
+Values at 10 characters and 6 lines per inch, margins included. `Width`, `Height`, `PrintableWidth` and `PrintableHeight` of the page settings return the actual values.
+
+### Page settings
+
+| Property | Default | Description |
+| --- | --- | --- |
+| `PaperSize` | `A4` | The paper size. |
+| `Orientation` | `Portrait` | `Portrait` or `Landscape`. |
+| `CharactersPerInch` | `10` | Pitch: 10 is pica, 12 is elite, 17 is condensed. |
+| `LinesPerInch` | `6` | Line spacing: 6 is the common value, 8 is compressed. |
+| `MarginLeft`, `MarginRight` | `0` | Margins, in characters. |
+| `MarginTop`, `MarginBottom` | `0` | Margins, in lines. |
+| `Header`, `Footer` | empty | The bands printed on every page. |
+| `RepeatColumnHeader` | `true` | Prints the column header on every page, not only on the first one. |
+| `PageBreak` | `"\f"` | Text put at the beginning of every page after the first one by `GetTextReport` (form feed, so a printer starts a new sheet). Set `""` to have no break character. |
+| `Date` | now | Date used by the `{date}` placeholder. |
+
+The table is fitted in the printable width (or in `options.Width`, if it is smaller). The title is printed only on the first page.
+
+### Header and footer
+
+`Header` and `Footer` have three texts, `Left`, `Center` and `Right`, aligned on the printable width. A text can span more lines with `\n`. `ShowSeparator` draws a line (`SeparatorChar`, default `-`) between the band and the body.
+
+The texts can contain these placeholders, with an optional format after `:`:
+
+| Placeholder | Value | Example |
+| --- | --- | --- |
+| `{page}` | Page number | `{page}`, `{page:000}` |
+| `{pages}` | Number of pages | `Page {page} of {pages}` |
+| `{title}` | Report title | `{title}` |
+| `{date}` | `Date` of the page settings, `yyyy-MM-dd` by default | `{date:dd/MM/yyyy HH:mm}` |
 
 ## Custom value converter
 
@@ -118,37 +277,87 @@ public class CustomBooleanConverter : IValueConverter
 }
 ```
 
-Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as Base64.
+Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as base64.
 
 ## Generate the report
 
-Bind the collection and get the report as a single string or as an array of lines:
+Bind the collection and get the report as a single string, as an array of lines or as an array of pages:
 
 ```c#
+// the whole report; with pages, every page after the first one starts with PageBreak
 var text = report
     .Bind(models)
     .GetTextReport();
 
+// the lines of all the pages
 string[] lines = report
     .Bind(models)
     .GetTextLinesReport();
+
+// the pages: Number, Count and Lines of each page
+PlainTextReportPage[] pages = report
+    .Bind(models)
+    .GetPagesReport();
 ```
 
-A complete example is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
+Without page settings `GetPagesReport` returns a single page with the whole report.
 
-## Tests
+## Save to file
 
+Save the whole report in one file, or every page in its own file:
+
+```c#
+// one file; with pages, the pages are separated by PageBreak (form feed by default)
+report.Bind(models).SaveToFile("report.txt");
+
+// an absolute path: the directories are created when missing; the absolute path of the file is returned
+string file = report.Bind(models).SaveToFile(@"C:\Reports\2026\report.txt");
+
+// a file for every page: page-001.txt, page-002.txt, ...
+string[] files = report.Bind(models).SavePagesToFiles("pages");
+string[] absoluteFiles = report.Bind(models).SavePagesToFiles(@"C:\Reports\2026\pages");
+
+// a custom file name, with the placeholders {page}, {pages}, {title} and {date}
+report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000}.txt");
 ```
-dotnet test src/PlainTextReport.sln
+
+- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
+- Paths can be absolute or relative to the current directory; both methods return absolute paths.
+- Existing files are overwritten, and missing directories are created.
+- The filename pattern must contain `{page}` when there is more than one page; characters that are not valid in a filename are replaced by `_`.
+- Without page settings `SavePagesToFiles` writes a single file.
+- `SaveToFileAsync` and `SavePagesToFilesAsync` do the same asynchronously, with an optional `CancellationToken`.
+
+## Write to a stream or a writer
+
+The report can be written to any `Stream` or `TextWriter`, for example the body of an HTTP response, without a file:
+
+```c#
+// ASP.NET Core
+app.MapGet("/report.txt", async (HttpResponse response) =>
+{
+    response.ContentType = "text/plain; charset=utf-8";
+    await report.Bind(models).WriteToAsync(response.Body);
+});
+
+// a MemoryStream, with a different encoding
+using var stream = new MemoryStream();
+report.Bind(models).WriteTo(stream, Encoding.GetEncoding(850));
+
+// a TextWriter
+report.Bind(models).WriteTo(Console.Out);
 ```
+
+- The text is the same as `GetTextReport()`, followed by a line break, the same as `SaveToFile`.
+- The stream and the writer are flushed but not closed.
+- The BOM of the encoding, if any, is written only at the beginning of a seekable stream.
+
+A complete example, with and without pages, is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
 
 ## Benchmark
 
 The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows. Run it in Release mode:
 
-```
-dotnet run -c Release --project benchmark/PlainTextReportBenchmark
-```
 
 ## License
 

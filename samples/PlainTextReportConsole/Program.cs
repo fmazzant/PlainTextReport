@@ -1,5 +1,4 @@
 using Mafesoft.PlainTextReport;
-using Mafesoft.PlainTextReport.Conversions;
 
 var report = new PlainTextReport<Model>(options =>
 {
@@ -36,17 +35,68 @@ var text = report
 
 Console.WriteLine(text);
 
-public class Model
+// Paged report: A4 portrait, with header and footer on every page
+var pagedReport = new PlainTextReport<Model>(options =>
 {
-    public int Id { get; set; }
-    public string? Name { get; set; }
-    public decimal Price { get; set; }
-    public DateTime CreatedOn { get; set; }
-    public bool Enabled { get; set; }
+    options.Title = "Products";
+    options.ShowHeader = true;
+    options.ShowHeaderSeparator = true;
+    options.ShowColumnSeparator = true;
+
+    options.Page = new PlainTextReportPageSettings(PaperSize.A4, PageOrientation.Landscape)
+    {
+        MarginLeft = 2,
+        MarginRight = 2,
+        MarginTop = 1,
+        MarginBottom = 1,
+    };
+    options.Page.Header.Left = "{title}";
+    options.Page.Header.Right = "{date:dd/MM/yyyy}";
+    options.Page.Header.ShowSeparator = true;
+    options.Page.Footer.Right = "{page}/{pages}";
+    options.Page.Footer.ShowSeparator = true;
+
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%"); // takes all the free space
+    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
+});
+
+var pages = pagedReport
+    .Bind(Enumerable.Range(1, 150).Select(x => new Model { Id = x, Name = $"Product {x}", Price = x * 1.4m, CreatedOn = DateTime.Today }))
+    .GetPagesReport();
+
+foreach (var page in pages)
+{
+    Console.WriteLine(page);
+    Console.WriteLine();
 }
 
-public class CustomBooleanConverter : IValueConverter
+// Multi-line rows: long values wrap in their column, line breaks start a new line
+var multiLineReport = new PlainTextReport<Model>(options =>
 {
-    public string Convert(object value, object parameter, IFormatProvider provider)
-        => value is bool boolValue && boolValue ? "Yes" : "No";
-}
+    options.ShowHeader = true;
+    options.ShowHeaderSeparator = true;
+    options.ShowColumnSeparator = true;
+    options.MultiLineRows = true;
+
+    options.Columns.AddColumn(m => m.Id, style => { });
+    options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
+    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+});
+
+Console.WriteLine(multiLineReport
+    .Bind(new[]
+    {
+        new Model { Id = 1, Name = "Red apples from the Italian Alps", Price = 2.5m },
+        new Model { Id = 2, Name = "Bananas\nimported", Price = 1.2m },
+    })
+    .GetTextReport());
+Console.WriteLine();
+
+// Save the report in one file (pages separated by form feed) and every page in its own file.
+// The paths can be absolute or relative; the directories are created when missing.
+var outputDirectory = Path.Combine(Path.GetTempPath(), "PlainTextReportSample");
+var reportFile = pagedReport.SaveToFile(Path.Combine(outputDirectory, "report.txt"));
+var files = pagedReport.SavePagesToFiles(Path.Combine(outputDirectory, "pages"), "page-{page:000}.txt");
+Console.WriteLine($"Saved {reportFile} and {files.Length} pages in {Path.GetDirectoryName(files[0])}");

@@ -1,24 +1,8 @@
 using Mafesoft.PlainTextReport;
-using Mafesoft.PlainTextReport.Conversions;
 using Xunit;
 
 namespace Mafesoft.PlainTextReport.Tests
 {
-    public class Product
-    {
-        public int Id { get; set; }
-        public string? Name { get; set; }
-        public decimal Price { get; set; }
-        public DateTime CreatedOn { get; set; }
-        public bool Enabled { get; set; }
-    }
-
-    public class YesNoConverter : IValueConverter
-    {
-        public string Convert(object value, object parameter, IFormatProvider provider)
-            => value is bool b && b ? "Yes" : "No";
-    }
-
     public class PlainTextReportTests
     {
         private static readonly Product[] Products =
@@ -235,6 +219,80 @@ namespace Mafesoft.PlainTextReport.Tests
 
             Assert.Equal(" 1 |       |     1", lines[2]);
             Assert.Equal(" 2 | a b c |     2", lines[3]);
+        }
+
+        [Fact]
+        public void Constructors_require_the_options()
+        {
+            Assert.Throws<ArgumentNullException>(() => new PlainTextReport<Product>((Action<PlainTextReportOptions<Product>>)null!));
+            Assert.Throws<ArgumentNullException>(() => new PlainTextReport<Product>((PlainTextReportOptions<Product>)null!));
+        }
+
+        [Fact]
+        public void Accepts_the_options_instance()
+        {
+            var options = new PlainTextReportOptions<Product>();
+            options.Columns.AddColumn(m => m.Name, style => { });
+
+            var lines = new PlainTextReport<Product>(options).Bind(Products).GetTextLinesReport();
+
+            Assert.Equal(new[] { "Apple", "Banana" }, lines);
+        }
+
+        [Fact]
+        public void Report_without_columns_is_empty()
+        {
+            var report = new PlainTextReport<Product>(options => options.ShowHeader = true).Bind(Products);
+
+            Assert.Empty(report.GetTextLinesReport());
+            Assert.Equal(string.Empty, report.GetTextReport());
+        }
+
+        [Fact]
+        public void Hides_the_header()
+        {
+            var lines = CreateReport(o => o.ShowHeader = false).Bind(Products).GetTextLinesReport();
+
+            Assert.Equal(new[] { " 1 | Apple  |   1.5", "10 | Banana | 12.25" }, lines);
+        }
+
+        [Fact]
+        public void Header_separator_requires_the_header()
+        {
+            var lines = CreateReport(o => o.ShowHeader = false).Bind(Products).GetTextLinesReport();
+
+            Assert.DoesNotContain(lines, line => line.StartsWith("---"));
+        }
+
+        [Fact]
+        public void Applies_the_header_alignment()
+        {
+            var lines = new PlainTextReport<Product>(options =>
+            {
+                options.ShowHeader = true;
+                options.Columns.AddColumn(m => m.Name, style => { style.Width = 8; style.HeaderAlignment = PlainTextReportAlignment.Right; });
+            }).Bind(Products).GetTextLinesReport();
+
+            Assert.Equal(new[] { "    Name", "Apple", "Banana" }, lines);
+        }
+
+        [Fact]
+        public void Null_items_are_empty_rows()
+        {
+            var lines = CreateReport().Bind(new Product?[] { null, Products[0] }!).GetTextLinesReport();
+
+            Assert.Equal("   |       |", lines[2]);
+            Assert.Equal(" 1 | Apple |   1.5", lines[3]);
+        }
+
+        [Fact]
+        public void Bind_returns_the_same_report_and_replaces_the_values()
+        {
+            var report = CreateReport();
+
+            Assert.Same(report, report.Bind(Products));
+            Assert.Equal(4, report.GetTextLinesReport().Length);
+            Assert.Equal(3, report.Bind(Products.Take(1)).GetTextLinesReport().Length);
         }
 
         [Fact]
