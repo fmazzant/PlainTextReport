@@ -6,6 +6,7 @@
     <NeutralLanguage>en</NeutralLanguage>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageIcon>icon.png</PackageIcon>
     <Description>PlainTextReport is a .NET library to generate a plain text report from a collection of objects.</Description>
     <PackageProjectUrl>https://github.com/fmazzant/PlainTextReport</PackageProjectUrl>
     <RepositoryUrl>https://github.com/fmazzant/PlainTextReport</RepositoryUrl>
@@ -27,6 +28,10 @@
 
   <ItemGroup>
     <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\assets\icon.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
