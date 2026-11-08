@@ -169,8 +169,8 @@ namespace Mafesoft.PlainTextReport.Tests
             Assert.Equal(new[] { "1 | a", "  | b", "2 | c", "3 | d", "  | e", "  | f" }, report.GetTextLinesReport());
         }
 
+        // 20 characters x 12 lines, no header and footer
         private static PlainTextReportPageSettings SmallPage() =>
-            // 20 characters x 12 lines, no header and footer
             new PlainTextReportPageSettings(PaperSize.Custom("Test", 25.4 * 2, 25.4 * 3)) { CharactersPerInch = 10, LinesPerInch = 4 };
 
         private static PlainTextReport<Item> CreatePagedReport(PlainTextReportPageSettings page)

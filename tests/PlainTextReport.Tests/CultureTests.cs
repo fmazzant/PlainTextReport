@@ -57,10 +57,11 @@ namespace Mafesoft.PlainTextReport.Tests
         [Fact]
         public void The_format_provider_of_the_column_wins()
         {
-            Assert.Equal("1/2/2024 12:00:00 AM", Cell(o =>
+            // it-IT would print 1234,5
+            Assert.Equal("1234.5", Cell(o =>
             {
                 o.Culture = new CultureInfo("it-IT");
-                o.Columns.AddColumn(m => m.CreatedOn, new CultureInfo("en-US"));
+                o.Columns.AddColumn(m => m.Price, new CultureInfo("en-US"));
             }));
         }
 

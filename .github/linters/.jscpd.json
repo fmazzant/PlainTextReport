@@ -1,0 +1,14 @@
+{
+  "threshold": 0,
+  "reporters": ["consoleFull"],
+  "ignore": [
+    "**/bin/**",
+    "**/obj/**",
+    "**/tests/**",
+    "**/samples/**",
+    "**/benchmark/**",
+    "**/.vs/**"
+  ],
+  "ignorePattern": ["using [A-Za-z0-9_.]+;"],
+  "absolute": true
+}

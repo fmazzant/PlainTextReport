@@ -54,7 +54,7 @@ var report = new PlainTextReport<Model>(options =>
 
 The result looks like this:
 
-```
+```text
                My first plain text report
 
 Id | Name                 | Price | CreatedOn  | Enabled
@@ -203,7 +203,7 @@ var report = new PlainTextReport<Model>(options =>
 
 Every page has exactly the height of the paper, so the footer is always at the bottom:
 
-```
+```text
     Products                                                        07/11/2026
     --------------------------------------------------------------------------
      Id | Name
@@ -273,7 +273,7 @@ public class CustomBooleanConverter : IValueConverter
 }
 ```
 
-Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as Base64.
+Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as base64.
 
 ## Generate the report
 
@@ -320,7 +320,7 @@ report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000
 - The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
 - Paths can be absolute or relative to the current directory; both methods return absolute paths.
 - Existing files are overwritten, and missing directories are created.
-- The file name pattern must contain `{page}` when there is more than one page; characters that are not valid in a file name are replaced by `_`.
+- The filename pattern must contain `{page}` when there is more than one page; characters that are not valid in a filename are replaced by `_`.
 - Without page settings `SavePagesToFiles` writes a single file.
 - `SaveToFileAsync` and `SavePagesToFilesAsync` do the same asynchronously, with an optional `CancellationToken`.
 
@@ -350,19 +350,10 @@ report.Bind(models).WriteTo(Console.Out);
 
 A complete example, with and without pages, is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
 
-## Tests
-
-```
-dotnet test src/PlainTextReport.sln
-```
-
 ## Benchmark
 
 The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows. Run it in Release mode:
 
-```
-dotnet run -c Release --project benchmark/PlainTextReportBenchmark
-```
 
 ## License
 
