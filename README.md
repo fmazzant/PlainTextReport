@@ -82,7 +82,11 @@ Id | Name                 | Price | CreatedOn  | Enabled
 
 ### Columns
 
-A column is defined by a property or a field of the model, also nested: `m => m.Customer.Address.City`. When an intermediate value is `null` (an order without a customer) the cell is empty. The default name of a nested column is its path, `Customer.Address.City`; give it a `columnName` to print something else. Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an `IValueConverter` instead.
+A column is defined by a property or a field of the model, also nested: `m => m.Customer.Address.City`.
+
+When an intermediate value is `null` (an order without a customer) the cell is empty. The default name of a nested column is its path, `Customer.Address.City`; give it a `columnName` to print something else.
+
+Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an `IValueConverter` instead.
 
 `AddColumn` has several overloads, so a column can also specify:
 
