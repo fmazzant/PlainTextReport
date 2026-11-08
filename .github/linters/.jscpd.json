@@ -7,7 +7,9 @@
     "**/tests/**",
     "**/samples/**",
     "**/benchmark/**",
-    "**/.vs/**"
+    "**/.vs/**",
+    "**/node_modules/**",
+    "**/__snapshots__/**"
   ],
   "ignorePattern": ["using [A-Za-z0-9_.]+;"],
   "absolute": true
