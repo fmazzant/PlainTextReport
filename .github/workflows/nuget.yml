@@ -3,7 +3,8 @@ name: Publish PlainTextReport on NuGet
 on:
   push:
     tags: [ 'v*' ]
-
+  workflow_dispatch:
+  
 permissions:
   contents: read
   # Required by NuGet Trusted Publishing: GitHub issues the OIDC token exchanged for a temporary API key
