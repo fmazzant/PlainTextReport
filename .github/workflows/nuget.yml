@@ -4,7 +4,12 @@ on:
   push:
     tags: [ 'v*' ]
   workflow_dispatch:
-  
+    inputs:
+      version:
+        description: 'Package version (empty = the version in the csproj)'
+        required: false
+        type: string
+
 permissions:
   contents: read
   # Required by NuGet Trusted Publishing: GitHub issues the OIDC token exchanged for a temporary API key
@@ -24,20 +29,30 @@ jobs:
         dotnet-version: 8.0.x
         global-json-file: global.json
 
-    - name: Get version from tag
-      run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+    # Not named VERSION: MSBuild reads environment variables as properties,
+    # so VERSION=main would become the package version during restore
+    - name: Get package version
+      env:
+        DISPATCH_VERSION: ${{ inputs.version }}
+      run: |
+        if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+          PACKAGE_VERSION="${GITHUB_REF_NAME#v}"
+        else
+          PACKAGE_VERSION="$DISPATCH_VERSION"
+        fi
+        echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> "$GITHUB_ENV"
 
     - name: Restore dependencies
       run: dotnet restore src/PlainTextReport.sln --verbosity normal
 
     - name: Build
-      run: dotnet build --no-restore -c Release -p:Version="$VERSION" src/PlainTextReport.sln
+      run: dotnet build --no-restore -c Release ${PACKAGE_VERSION:+"-p:Version=$PACKAGE_VERSION"} src/PlainTextReport.sln
 
     - name: Test
       run: dotnet test --no-build -c Release src/PlainTextReport.sln
 
     - name: Package
-      run: dotnet pack --no-build -c Release -o . src/PlainTextReport/PlainTextReport.csproj
+      run: dotnet pack --no-build -c Release ${PACKAGE_VERSION:+"-p:Version=$PACKAGE_VERSION"} -o . src/PlainTextReport/PlainTextReport.csproj
 
     # Trusted Publishing: exchanges the GitHub OIDC token for a short-lived NuGet API key
     - name: NuGet login
