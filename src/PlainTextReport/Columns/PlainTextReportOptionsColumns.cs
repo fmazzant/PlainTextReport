@@ -1,31 +1,29 @@
-﻿/// <summary>
-/// 
-/// The MIT License (MIT)
-/// 
-/// Copyright (c) 2024 Federico Mazzanti
-/// 
-/// Permission is hereby granted, free of charge, to any person
-/// obtaining a copy of this software and associated documentation
-/// files (the "Software"), to deal in the Software without
-/// restriction, including without limitation the rights to use,
-/// copy, modify, merge, publish, distribute, sublicense, and/or sell
-/// copies of the Software, and to permit persons to whom the
-/// Software is furnished to do so, subject to the following
-/// conditions:
-/// 
-/// The above copyright notice and this permission notice shall be
-/// included in all copies or substantial portions of the Software.
-/// 
-/// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-/// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-/// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-/// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-/// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-/// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-/// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-/// OTHER DEALINGS IN THE SOFTWARE.
-/// 
-/// </summary>
+﻿//
+// The MIT License (MIT)
+//
+// Copyright (c) 2024 Federico Mazzanti
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+//
 
 namespace Mafesoft.PlainTextReport
 {
@@ -41,7 +39,7 @@ namespace Mafesoft.PlainTextReport
     /// <summary>
     /// PlainTextReport Options Collection Columns
     /// </summary>
-    /// <typeparam name="M"></typeparam>
+    /// <typeparam name="M">The model type</typeparam>
     public sealed class PlainTextReportOptionsColumns<M> : IEnumerable<PlainTextReportColumn>
     {
         /// <summary>
@@ -65,10 +63,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnIndex"></param>
-        /// <param name="expression"></param>
-        /// <param name="columnFormat"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
         public void AddColumn<T>(int columnIndex, Expression<Func<M, T>> expression, string columnFormat = null)
         {
             var name = expression.GetPropertyName();
@@ -78,10 +76,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name="columnFormat"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnName">The name of the column, printed in the header</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
         public void AddColumn<T>(string columnName, Expression<Func<M, T>> expression, string columnFormat = null)
         {
             this.AddColumn(Columns.Count, columnName, expression, columnFormat);
@@ -90,9 +88,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="expression"></param>
-        /// <param name="columnFormat"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="style">Sets the style of the column: caption, width, alignment, multi-line</param>
+        /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
         public void AddColumn<T>(Expression<Func<M, T>> expression, Action<PlainTextReportColumnStyle> style, string columnFormat = null)
         {
             var columnName = expression.GetPropertyName();
@@ -104,11 +103,11 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnIndex"></param>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name="formatProvider"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnName">The name of the column, printed in the header</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="formatProvider">The format provider of the values; it wins over the culture of the report</param>
         public void AddColumn<T>(int columnIndex, string columnName, Expression<Func<M, T>> expression, IFormatProvider formatProvider)
         {
             this.AddColumn(columnIndex, columnName, expression, null, formatProvider);
@@ -117,11 +116,11 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnIndex"></param>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name="converter"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnName">The name of the column, printed in the header</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="converter">Converts the values to text</param>
         public void AddColumn<T>(int columnIndex, string columnName, Expression<Func<M, T>> expression, IValueConverter converter)
         {
             this.AddColumn(columnIndex, columnName, expression, null, null, converter);
@@ -130,9 +129,9 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="expression"></param>
-        /// <param name="formatProvider"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="formatProvider">The format provider of the values; it wins over the culture of the report</param>
         public void AddColumn<T>(Expression<Func<M, T>> expression, IFormatProvider formatProvider)
         {
             var columnName = expression.GetPropertyName();
@@ -142,10 +141,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="expression"></param>
-        /// <param name=""></param>
-        /// <param name="converter"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="style">Sets the style of the column: caption, width, alignment, multi-line</param>
+        /// <param name="converter">Converts the values to text</param>
         public void AddColumn<T>(Expression<Func<M, T>> expression, Action<PlainTextReportColumnStyle> style, IValueConverter converter)
         {
             var columnName = expression.GetPropertyName();
@@ -157,11 +156,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name=""></param>
-        /// <param name="converter"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnName">The name of the column, printed in the header</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="converter">Converts the values to text</param>
         public void AddColumn<T>(string columnName, Expression<Func<M, T>> expression, IValueConverter converter)
         {
             this.AddColumn(Columns.Count, columnName, expression, null, null, converter);
@@ -170,12 +168,13 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Add Column
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="columnIndex"></param>
-        /// <param name="columnName"></param>
-        /// <param name="expression"></param>
-        /// <param name="columnFormat"></param>
-        /// <param name="formatProvider"></param>
+        /// <typeparam name="T">The type of the value</typeparam>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnName">The name of the column, printed in the header</param>
+        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
+        /// <param name="formatProvider">The format provider of the values; it wins over the culture of the report</param>
+        /// <param name="valueConverter">Converts the values to text</param>
         private void AddColumn<T>(int columnIndex, string columnName, Expression<Func<M, T>> expression, string columnFormat = null, IFormatProvider formatProvider = null, IValueConverter valueConverter = null)
         {
             if (expression == null)
