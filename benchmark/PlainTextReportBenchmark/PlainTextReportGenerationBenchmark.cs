@@ -6,25 +6,9 @@ namespace PlainTextReportBenchmark
     [MemoryDiagnoser]
     public class PlainTextReportGenerationBenchmark
     {
-        private Model[] models = Array.Empty<Model>();
+        private BenchmarkRow[] rows = Array.Empty<BenchmarkRow>();
 
-        private readonly PlainTextReport<Model> report = new(options =>
-        {
-            // Options
-            options.ShowTitle = true;
-            options.Title = "Benchmark report";
-            options.ShowHeader = true;
-            options.ShowHeaderSeparator = true;
-            options.ShowColumnSeparator = true;
-            options.Width = 80;
-
-            // Columns
-            options.Columns.AddColumn(m => m.Id, style => { });
-            options.Columns.AddColumn(m => m.Name, style => { });
-            options.Columns.AddColumn(m => m.Price, style => { });
-            options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
-            options.Columns.AddColumn(m => m.Enabled, style => { });
-        });
+        private readonly PlainTextReport<BenchmarkRow> report = new(CreateOptions());
 
         [Params(100, 1000, 10000, 100000)]
         public int N;
@@ -33,22 +17,34 @@ namespace PlainTextReportBenchmark
         public void Setup()
         {
             var createdOn = new DateTime(2024, 1, 1);
-            models = Enumerable.Range(1, N)
-                .Select(i => new Model
-                {
-                    Id = i,
-                    Name = $"Name {i}",
-                    Price = i * 1.12m,
-                    CreatedOn = createdOn.AddDays(i % 365),
-                    Enabled = i % 2 == 0
-                })
+            rows = Enumerable.Range(1, N)
+                .Select(i => new BenchmarkRow(i, $"Name {i}", i * 1.12m, createdOn.AddDays(i % 365), i % 2 == 0))
                 .ToArray();
         }
 
         [Benchmark]
-        public string GetTextReport() => report.Bind(models).GetTextReport();
+        public string GetTextReport() => report.Bind(rows).GetTextReport();
 
         [Benchmark]
-        public string[] GetTextLinesReport() => report.Bind(models).GetTextLinesReport();
+        public string[] GetTextLinesReport() => report.Bind(rows).GetTextLinesReport();
+
+        private static PlainTextReportOptions<BenchmarkRow> CreateOptions()
+        {
+            var options = new PlainTextReportOptions<BenchmarkRow>
+            {
+                ShowTitle = true,
+                Title = "Benchmark report",
+                ShowHeader = true,
+                ShowHeaderSeparator = true,
+                ShowColumnSeparator = true,
+                Width = 80,
+            };
+            options.Columns.AddColumn(m => m.Id, style => { });
+            options.Columns.AddColumn(m => m.Name, style => { });
+            options.Columns.AddColumn(m => m.Price, style => { });
+            options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
+            options.Columns.AddColumn(m => m.Enabled, style => { });
+            return options;
+        }
     }
 }

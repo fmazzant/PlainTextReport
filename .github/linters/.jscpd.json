@@ -2,15 +2,11 @@
   "threshold": 0,
   "reporters": ["consoleFull"],
   "ignore": [
+    "**/tests/**",
     "**/bin/**",
     "**/obj/**",
-    "**/tests/**",
-    "**/samples/**",
-    "**/benchmark/**",
-    "**/.vs/**",
     "**/node_modules/**",
     "**/__snapshots__/**"
   ],
-  "ignorePattern": ["using [A-Za-z0-9_.]+;"],
   "absolute": true
 }
