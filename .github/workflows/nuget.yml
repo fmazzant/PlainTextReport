@@ -4,6 +4,11 @@ on:
   push:
     tags: [ 'v*' ]
 
+permissions:
+  contents: read
+  # Required by NuGet Trusted Publishing: GitHub issues the OIDC token exchanged for a temporary API key
+  id-token: write
+
 jobs:
   build:
 
@@ -33,5 +38,12 @@ jobs:
     - name: Package
       run: dotnet pack --no-build -c Release -p:Version="$VERSION" -o . src/PlainTextReport/PlainTextReport.csproj
 
+    # Trusted Publishing: exchanges the GitHub OIDC token for a short-lived NuGet API key
+    - name: NuGet login
+      id: login
+      uses: NuGet/login@v1
+      with:
+        user: ${{ secrets.NUGET_USER }}
+
     - name: Publish on NuGet
-      run: dotnet nuget push ./*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      run: dotnet nuget push ./*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
