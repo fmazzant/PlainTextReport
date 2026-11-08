@@ -2,7 +2,7 @@
 
 PlainTextReport is a .NET library to generate a plain text report from a collection of objects.
 
-> **Status:** release candidate (`1.0.0-rc1`).
+> **Status:** release candidate (`1.0.0`).
 
 To use it in your project, add the Mafesoft.PlainTextReport NuGet package to your project.
 
