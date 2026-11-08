@@ -1,19 +1,37 @@
 # PlainTextReport
 
-PlainTextReport is a .NET library to generate a plain text report from a collection of objects.
+[![Build](https://github.com/fmazzant/PlainTextReport/actions/workflows/dotnet.yml/badge.svg)](https://github.com/fmazzant/PlainTextReport/actions/workflows/dotnet.yml)
+[![NuGet](https://img.shields.io/nuget/v/Mafesoft.PlainTextReport?style=flat-square)](https://www.nuget.org/packages/Mafesoft.PlainTextReport)
+![NuGet downloads](https://img.shields.io/nuget/dt/Mafesoft.PlainTextReport?style=flat-square)
 
-> **Status:** release candidate (`1.0.0`).
+PlainTextReport is a .NET library to generate a plain text report from a collection of objects. The columns are defined with lambda expressions, as in [TinyCsv](https://github.com/fmazzant/TinyCsv), and the report can be split in pages ready to print, with a header and a footer on every page.
 
-To use it in your project, add the Mafesoft.PlainTextReport NuGet package to your project.
+## Why PlainTextReport
 
-[![Nuget](https://img.shields.io/nuget/v/Mafesoft.PlainTextReport?style=flat-square)](https://www.nuget.org/packages/Mafesoft.PlainTextReport)
-![Nuget](https://img.shields.io/nuget/dt/Mafesoft.PlainTextReport?style=flat-square)
+| Feature | Description |
+|---|---|
+| Columns from lambda expressions | `m => m.Price`, also nested (`m => m.Customer.Address.City`) and null safe. See [Columns](#columns) |
+| Column caption, width and alignment | The header text, a width in characters or as a percentage of the free space, left, right or center. See [Column style](#column-style) |
+| Formats and culture | Format strings (`"N2"`, `"dd/MM/yyyy"`), `IFormatProvider` and the `Culture` option. See [Culture](#culture) |
+| Custom converters | `IValueConverter` to print any value as you like. See [Custom value converter](#custom-value-converter) |
+| Long values | Truncated with `…` to fit the report width, or wrapped on more lines. See [Width and truncation](#width-and-truncation) and [Multi-line rows](#multi-line-rows) |
+| Pages | ISO A paper sizes or custom sizes, portrait or landscape, margins, header and footer with placeholders. See [Pages](#pages) |
+| Output | A string, the lines, the pages, a file, a file for every page, a `Stream` or a `TextWriter`, also asynchronously. See [Generate the report](#generate-the-report) |
 
-Supported target frameworks: .NET 5, 6, 7, 8 and .NET Framework 4.5.2, 4.6.2, 4.7.2, 4.8.
+## Requirements
 
-## Define the model
+- .NET 5, 6, 7, 8 or 10
+- .NET Framework 4.5.2, 4.6.2, 4.7.2 or 4.8
 
-Define the model that you want to print, like this:
+## Installation
+
+```shell
+dotnet add package Mafesoft.PlainTextReport
+```
+
+## Usage
+
+Define the model that you want to print:
 
 ```c#
 public class Model
@@ -25,8 +43,6 @@ public class Model
     public bool Enabled { get; set; }
 }
 ```
-
-## Define the report
 
 Create a `PlainTextReport<T>` and configure its options and columns:
 
@@ -50,6 +66,8 @@ var report = new PlainTextReport<Model>(options =>
     options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
     options.Columns.AddColumn(m => m.Enabled, style => style.Alignment = PlainTextReportAlignment.Center, new CustomBooleanConverter());
 });
+
+string text = report.Bind(models).GetTextReport();
 ```
 
 The result looks like this:
@@ -64,14 +82,14 @@ Id | Name                 | Price | CreatedOn  | Enabled
  3 | Product 3            |  4.20 | 04/11/2026 |   Yes
 ```
 
-### Options
+## Options
 
 | Option | Default | Description |
-| --- | --- | --- |
+|---|---|---|
 | `ShowTitle` | `false` | Prints the title at the top of the report, centered, followed by an empty line. |
 | `Title` | | The report title. |
 | `MultiLineTitle` | | A title on more lines; when set (and not empty) it is used instead of `Title`. |
-| `ShowHeader` | `false` | Prints the header row with the column names. |
+| `ShowHeader` | `false` | Prints the header row with the column captions. |
 | `ShowHeaderSeparator` | `false` | Prints a separator line below the header. |
 | `ShowColumnSeparator` | `false` | Prints a separator between the columns; otherwise the columns are separated by a space. |
 | `ColumnSeparator` | `'\|'` | The character used to separate the columns. |
@@ -79,16 +97,11 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `Width` | `0` | The maximum width of the report, in characters. `0` means no limit. |
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
+| `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
 
-### Columns
+## Columns
 
-A column is defined by a property or a field of the model, also nested: `m => m.Customer.Address.City`.
-
-When an intermediate value is `null` (an order without a customer) the cell is empty. The default name of a nested column is its path, `Customer.Address.City`; give it a `columnName` to print something else.
-
-Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an `IValueConverter` instead.
-
-`AddColumn` has several overloads, so a column can also specify:
+A column is defined by a property or a field of the model. `AddColumn` has several overloads, so a column can also specify:
 
 - a name (`columnName`) or a position (`columnIndex`); the columns are printed in `columnIndex` order;
 - a format string (`columnFormat`), for example `"dd/MM/yyyy"` for dates or `"N2"` for numbers;
@@ -96,30 +109,36 @@ Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` thro
 - a custom `IValueConverter`;
 - a style (`PlainTextReportColumnStyle`).
 
-### Culture
-
-Values are formatted with the invariant culture, unless `options.Culture` is set or the column has its own `IFormatProvider`:
-
 ```c#
-options.Culture = new CultureInfo("it-IT");
-options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");                // 1.234,50
-options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd MMMM yyyy");  // 02 gennaio 2024
-options.Columns.AddColumn(m => m.UpdatedOn, new CultureInfo("en-US"));                    // the column's provider wins
+options.Columns.AddColumn(m => m.Id, style => { });
+options.Columns.AddColumn("Product", m => m.Name);
+options.Columns.AddColumn(0, "Code", m => m.Id, new CultureInfo("it-IT"));
+options.Columns.AddColumn(m => m.Enabled, style => { }, new CustomBooleanConverter());
 ```
 
-The culture is also used by the `{date}` placeholder of header and footer, and it is passed to the custom converters as `provider`.
+Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an [`IValueConverter`](#custom-value-converter) instead.
+
+### Nested properties
+
+A column can read a property of a property, at any depth:
+
+```c#
+options.Columns.AddColumn(m => m.Customer.Address.City, style => { });
+```
+
+- When an intermediate value is `null` (an order without a customer) the cell is empty, without a `NullReferenceException`.
+- The default name of a nested column is its path, `Customer.Address.City`. Give it a `columnName` or a [caption](#column-style) to print something else.
+- `Nullable<T>` values work too: `m => m.ShippedOn.Value.Year` is empty when `ShippedOn` is `null`.
 
 ### Column style
 
 | Property | Default | Description |
-| --- | --- | --- |
+|---|---|---|
 | `Caption` | `null` | The text printed in the header. When `null` it is the column name (`columnName`, or the name of the property). |
 | `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
 | `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
-
-The caption can be set together with the rest of the style:
 
 ```c#
 options.Columns.AddColumn(m => m.Price, style =>
@@ -129,6 +148,8 @@ options.Columns.AddColumn(m => m.Price, style =>
     style.Alignment = PlainTextReportAlignment.Right;
 }, columnFormat: "N2");
 ```
+
+The caption changes only the header: the column name is still used to identify the column.
 
 ### Column width in characters or percentage
 
@@ -174,6 +195,35 @@ Id | Name             | Price
 ```
 
 With pages, the lines of a row are kept on the same page; only a row taller than a whole page continues on the next one.
+
+### Culture
+
+Values are formatted with the invariant culture, so a report is the same on every machine, unless `options.Culture` is set or the column has its own `IFormatProvider`:
+
+```c#
+options.Culture = new CultureInfo("it-IT");
+options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");                // 1.234,50
+options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd MMMM yyyy");  // 02 gennaio 2024
+options.Columns.AddColumn(m => m.UpdatedOn, new CultureInfo("en-US"));                    // the column's provider wins
+```
+
+The culture is also used by the `{date}` placeholder of header and footer, and it is passed to the custom converters as `provider`.
+
+## Custom value converter
+
+To control how a value is printed, implement `IValueConverter`:
+
+```c#
+using Mafesoft.PlainTextReport.Conversions;
+
+public class CustomBooleanConverter : IValueConverter
+{
+    public string Convert(object value, object parameter, IFormatProvider provider)
+        => value is bool b && b ? "Yes" : "No";
+}
+```
+
+Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as base64.
 
 ## Pages
 
@@ -226,7 +276,7 @@ A plain text page is measured in characters and lines, so the paper size is conv
 The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. `PaperSize.Custom(name, width, height)` creates any other size in millimeters. Each paper can be used in `Portrait` or `Landscape`.
 
 | Paper | Size (mm) | Portrait (chars x lines) | Landscape (chars x lines) |
-| --- | --- | --- | --- |
+|---|---|---|---|
 | A3 | 297 x 420 | 116 x 99 | 165 x 70 |
 | A4 | 210 x 297 | 82 x 70 | 116 x 49 |
 | A5 | 148 x 210 | 58 x 49 | 82 x 34 |
@@ -236,7 +286,7 @@ Values at 10 characters and 6 lines per inch, margins included. `Width`, `Height
 ### Page settings
 
 | Property | Default | Description |
-| --- | --- | --- |
+|---|---|---|
 | `PaperSize` | `A4` | The paper size. |
 | `Orientation` | `Portrait` | `Portrait` or `Landscape`. |
 | `CharactersPerInch` | `10` | Pitch: 10 is pica, 12 is elite, 17 is condensed. |
@@ -257,27 +307,11 @@ The table is fitted in the printable width (or in `options.Width`, if it is smal
 The texts can contain these placeholders, with an optional format after `:`:
 
 | Placeholder | Value | Example |
-| --- | --- | --- |
+|---|---|---|
 | `{page}` | Page number | `{page}`, `{page:000}` |
 | `{pages}` | Number of pages | `Page {page} of {pages}` |
 | `{title}` | Report title | `{title}` |
 | `{date}` | `Date` of the page settings, `yyyy-MM-dd` by default | `{date:dd/MM/yyyy HH:mm}` |
-
-## Custom value converter
-
-To control how a value is printed, implement `IValueConverter`:
-
-```c#
-using Mafesoft.PlainTextReport.Conversions;
-
-public class CustomBooleanConverter : IValueConverter
-{
-    public string Convert(object value, object parameter, IFormatProvider provider)
-        => value is bool b && b ? "Yes" : "No";
-}
-```
-
-Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as base64.
 
 ## Generate the report
 
@@ -285,24 +319,18 @@ Bind the collection and get the report as a single string, as an array of lines 
 
 ```c#
 // the whole report; with pages, every page after the first one starts with PageBreak
-var text = report
-    .Bind(models)
-    .GetTextReport();
+string text = report.Bind(models).GetTextReport();
 
 // the lines of all the pages
-string[] lines = report
-    .Bind(models)
-    .GetTextLinesReport();
+string[] lines = report.Bind(models).GetTextLinesReport();
 
 // the pages: Number, Count and Lines of each page
-PlainTextReportPage[] pages = report
-    .Bind(models)
-    .GetPagesReport();
+PlainTextReportPage[] pages = report.Bind(models).GetPagesReport();
 ```
 
 Without page settings `GetPagesReport` returns a single page with the whole report.
 
-## Save to file
+### Save to file
 
 Save the whole report in one file, or every page in its own file:
 
@@ -319,6 +347,10 @@ string[] absoluteFiles = report.Bind(models).SavePagesToFiles(@"C:\Reports\2026\
 
 // a custom file name, with the placeholders {page}, {pages}, {title} and {date}
 report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000}.txt");
+
+// asynchronously, with an optional CancellationToken
+await report.Bind(models).SaveToFileAsync("report.txt", cancellationToken: token);
+await report.Bind(models).SavePagesToFilesAsync("pages", cancellationToken: token);
 ```
 
 - The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
@@ -326,9 +358,8 @@ report.Bind(models).SavePagesToFiles("pages", "{title}-{date:yyyyMMdd}-{page:000
 - Existing files are overwritten, and missing directories are created.
 - The filename pattern must contain `{page}` when there is more than one page; characters that are not valid in a filename are replaced by `_`.
 - Without page settings `SavePagesToFiles` writes a single file.
-- `SaveToFileAsync` and `SavePagesToFilesAsync` do the same asynchronously, with an optional `CancellationToken`.
 
-## Write to a stream or a writer
+### Write to a stream or a writer
 
 The report can be written to any `Stream` or `TextWriter`, for example the body of an HTTP response, without a file:
 
@@ -351,13 +382,31 @@ report.Bind(models).WriteTo(Console.Out);
 - The text is the same as `GetTextReport()`, followed by a line break, the same as `SaveToFile`.
 - The stream and the writer are flushed but not closed.
 - The BOM of the encoding, if any, is written only at the beginning of a seekable stream.
+- `WriteToAsync` takes an optional `CancellationToken`.
 
-A complete example, with and without pages, is available in [samples/PlainTextReportConsole](samples/PlainTextReportConsole/Program.cs).
+## Sample app
+
+[`samples/PlainTextReportConsole`](samples/PlainTextReportConsole/Program.cs) prints a report without pages and a paged report, with header and footer, on the console:
+
+```shell
+dotnet run --project samples/PlainTextReportConsole
+```
 
 ## Benchmark
 
 The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows. Run it in Release mode:
 
+```shell
+dotnet run -c Release --project benchmark/PlainTextReportBenchmark
+```
+
+## Tests
+
+The tests use [xUnit](https://xunit.net/) and run on .NET 8 and .NET 10:
+
+```shell
+dotnet test src/PlainTextReport.sln
+```
 
 ## License
 
