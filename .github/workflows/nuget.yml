@@ -1,4 +1,4 @@
-name: Publish PlainTextReport on NuGet
+name: NuGet
 
 on:
   push:
@@ -23,9 +23,9 @@ jobs:
     environment: production
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         # .NET 8 runtime for the net8.0 tests; the SDK version comes from global.json
         dotnet-version: 8.0.x
