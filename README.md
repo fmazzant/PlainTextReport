@@ -5,7 +5,7 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/fmazzant/PlainTextReport/ci.yml?branch=main&style=flat-square&label=build)](https://github.com/fmazzant/PlainTextReport/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](https://github.com/fmazzant/PlainTextReport/blob/main/LICENSE)
 [![CodeQL](https://img.shields.io/github/actions/workflow/status/fmazzant/PlainTextReport/codeql.yml?branch=main&style=flat-square&label=codeql)](https://github.com/fmazzant/PlainTextReport/actions/workflows/codeql.yml)
-[![.NET](https://img.shields.io/badge/.NET-10%20%7C%208%20%7C%207%20%7C%206%20%7C%205%20%7C%20Framework%204.5.2%2B-512BD4?style=flat-square)](#)
+[![.NET](https://img.shields.io/badge/.NET-10%20%7C%208%20%7C%20Standard%202.0%20%7C%20Framework%204.6.2%2B-512BD4?style=flat-square)](#)
 
 PlainTextReport is a .NET library to generate a plain text report from a collection of objects. The columns are defined with lambda expressions, as in [TinyCsv](https://github.com/fmazzant/TinyCsv), and the report can be split in pages ready to print, with a header and a footer on every page.
 
