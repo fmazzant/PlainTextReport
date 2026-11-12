@@ -23,8 +23,11 @@ PlainTextReport is a .NET library to generate a plain text report from a collect
 
 ## Requirements
 
-- .NET 5, 6, 7, 8 or 10
-- .NET Framework 4.5.2, 4.6.2, 4.7.2 or 4.8
+- .NET 8 or 10 (dedicated builds)
+- .NET Framework 4.6.2 or later (4.7.2 and 4.8 use the 4.6.2 build)
+- any other platform that supports .NET Standard 2.0: .NET Core 2.0+, .NET 5, 6, 7 and 9, Mono, Xamarin, Unity
+
+.NET Framework 4.5.2 – 4.6.1 is no longer supported since 1.1.0 (out of support since April 2022): use 1.0.0.1.
 
 ## Installation
 
@@ -356,7 +359,7 @@ await report.Bind(models).SaveToFileAsync("report.txt", cancellationToken: token
 await report.Bind(models).SavePagesToFilesAsync("pages", cancellationToken: token);
 ```
 
-- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET 5+ register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
+- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET and .NET Core, not on .NET Framework, register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
 - Paths can be absolute or relative to the current directory; both methods return absolute paths.
 - Existing files are overwritten, and missing directories are created.
 - The filename pattern must contain `{page}` when there is more than one page; characters that are not valid in a filename are replaced by `_`.
