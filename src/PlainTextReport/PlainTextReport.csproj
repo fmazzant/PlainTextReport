@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net5.0;net6.0;net7.0;net8.0;net10.0;net452;net462;net472;net48</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0;net462;net8.0;net10.0</TargetFrameworks>
     <NeutralLanguage>en</NeutralLanguage>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -18,7 +18,7 @@
     <Title>Mafesoft.PlainTextReport</Title>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Product>PlainTextReport</Product>
-    <Version>1.0.0.1</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
   <!-- XML documentation, so the comments are shown by IntelliSense -->
