@@ -1,0 +1,11 @@
+<Project>
+
+  <!--
+    Single version source for the package. The release tag (v1.2.0) passes the same version to the publish
+    workflow with -p:Version, which wins over VersionPrefix.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>1.2.0</VersionPrefix>
+  </PropertyGroup>
+
+</Project>
