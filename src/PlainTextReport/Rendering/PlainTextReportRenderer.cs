@@ -41,7 +41,10 @@ namespace Mafesoft.PlainTextReport
     /// <typeparam name="T"></typeparam>
     internal sealed class PlainTextReportRenderer<T>
     {
-        private const char Ellipsis = '…';
+        /// <summary>
+        /// The default truncation marker, the ellipsis
+        /// </summary>
+        internal const string DefaultTruncationMarker = "…";
         private const string DefaultDateFormat = "yyyy-MM-dd";
         private static readonly char[] LayoutBreakers = new[] { '\r', '\n', '\t' };
         private static readonly string[] NewLines = new[] { "\r\n", "\n" };
@@ -55,6 +58,7 @@ namespace Mafesoft.PlainTextReport
         private readonly string[] nullTexts;
         private readonly CultureInfo culture;
         private readonly string newLine;
+        private readonly string truncationMarker;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -68,6 +72,7 @@ namespace Mafesoft.PlainTextReport
             this.getters = columns.Select(GetGetter).ToArray();
             this.culture = options.Culture ?? CultureInfo.InvariantCulture;
             this.newLine = options.GetNewLine();
+            this.truncationMarker = Clean(options.TruncationMarker ?? DefaultTruncationMarker);
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
             this.nullTexts = columns.Select(c => c.Style.NullText ?? options.NullText).ToArray();
@@ -166,7 +171,7 @@ namespace Mafesoft.PlainTextReport
                 var text = Clean(titleLine);
                 if (maxWidth > 0 && text.Length > maxWidth)
                 {
-                    text = text.Substring(0, maxWidth);
+                    text = Truncate(text, maxWidth);
                 }
                 var padding = Math.Max(0, (width - text.Length) / 2);
                 lines.Add((new string(' ', padding) + text).TrimEnd());
@@ -446,26 +451,30 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Appends a cell, aligned to the width. A truncated text ends with an ellipsis.
+        /// Cuts a text longer than the width: it ends with the truncation marker, or it is cut without
+        /// the marker when the width is smaller than the marker
         /// </summary>
-        private static void AppendCell(StringBuilder builder, string text, int width, PlainTextReportAlignment alignment)
+        private string Truncate(string text, int width)
         {
-            if (text.Length == width)
+            if (text.Length <= width)
             {
-                builder.Append(text);
-                return;
+                return text;
             }
-
-            if (text.Length > width)
+            if (truncationMarker.Length > width)
             {
-                if (width == 1)
-                {
-                    builder.Append(Ellipsis);
-                }
-                else
-                {
-                    builder.Append(text, 0, width - 1).Append(Ellipsis);
-                }
+                return text.Substring(0, width);
+            }
+            return text.Substring(0, width - truncationMarker.Length) + truncationMarker;
+        }
+
+        /// <summary>
+        /// Appends a cell, aligned to the width. A truncated text ends with the truncation marker.
+        /// </summary>
+        private void AppendCell(StringBuilder builder, string text, int width, PlainTextReportAlignment alignment)
+        {
+            if (text.Length >= width)
+            {
+                builder.Append(Truncate(text, width));
                 return;
             }
 
@@ -616,9 +625,9 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the lines of a band, with the placeholders replaced
+        /// Returns the lines of a band, with the placeholders replaced; a text longer than the width ends with the truncation marker
         /// </summary>
-        private static List<string> GetBandLines(PlainTextReportPageBand band, int width, int number, int count, DateTime date, string title, CultureInfo culture)
+        private List<string> GetBandLines(PlainTextReportPageBand band, int width, int number, int count, DateTime date, string title, CultureInfo culture)
         {
             var left = SplitLines(band.Left);
             var center = SplitLines(band.Center);
@@ -629,9 +638,9 @@ namespace Mafesoft.PlainTextReport
             for (int i = 0; i < height; i++)
             {
                 var buffer = Enumerable.Repeat(' ', width).ToArray();
-                var c = Format(i < center.Length ? center[i] : null, number, count, date, title, culture);
-                var l = Format(i < left.Length ? left[i] : null, number, count, date, title, culture);
-                var r = Format(i < right.Length ? right[i] : null, number, count, date, title, culture);
+                var c = Truncate(Format(i < center.Length ? center[i] : null, number, count, date, title, culture), width);
+                var l = Truncate(Format(i < left.Length ? left[i] : null, number, count, date, title, culture), width);
+                var r = Truncate(Format(i < right.Length ? right[i] : null, number, count, date, title, culture), width);
                 Put(buffer, c, (width - Math.Min(c.Length, width)) / 2);
                 Put(buffer, l, 0);
                 Put(buffer, r, width - Math.Min(r.Length, width));

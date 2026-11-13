@@ -17,7 +17,7 @@ PlainTextReport is a .NET library to generate a plain text report from a collect
 | Column caption, width and alignment | The header text, a width in characters or as a percentage of the free space, left, right or center. See [Column style](#column-style) |
 | Formats and culture | Format strings (`"N2"`, `"dd/MM/yyyy"`), `IFormatProvider` and the `Culture` option. See [Culture](#culture) |
 | Custom converters | `IValueConverter` to print any value as you like. See [Custom value converter](#custom-value-converter) |
-| Long values | Truncated with `…` to fit the report width, or wrapped on more lines. See [Width and truncation](#width-and-truncation) and [Multi-line rows](#multi-line-rows) |
+| Long values | Truncated with `…` (or a marker of your choice) to fit the report width, or wrapped on more lines. See [Width and truncation](#width-and-truncation) and [Multi-line rows](#multi-line-rows) |
 | Pages | ISO A paper sizes or custom sizes, portrait or landscape, margins, header and footer with placeholders. See [Pages](#pages) |
 | Output | A string, the lines, the pages, a file, a file for every page, a `Stream` or a `TextWriter`, also asynchronously. See [Generate the report](#generate-the-report) |
 
@@ -104,6 +104,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 | `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
+| `TruncationMarker` | `"…"` | The text at the end of a truncated value, title, header or footer. `""` truncates without a marker. See [Width and truncation](#width-and-truncation). |
 | `NullText` | `null` | The text printed for a `null` value, for example `"-"` or `"n/a"`. `null` means an empty cell. See [Null values](#null-values). |
 | `NewLine` | `null` | The line separator, for example `"\r\n"` for a printer or `"\n"` for the Linux tools. `null` means `Environment.NewLine`, so the same report differs on Windows and Linux. Used by `GetTextReport`, `WriteTo`, `WriteToAsync`, `SaveToFile`, `SavePagesToFiles` and `PlainTextReportPage.ToString()`. |
 
@@ -200,7 +201,15 @@ A percentage is a share of the **free space**: the report width (`options.Width`
 
 ### Width and truncation
 
-When `Width` is set and the columns don't fit, the report shrinks the automatic text columns first, then the automatic numeric columns, and the fixed-width columns last. A value that doesn't fit its column ends with `…`, so a truncated value is always visible.
+When `Width` is set and the columns don't fit, the report shrinks the automatic text columns first, then the automatic numeric columns, and the fixed-width columns last. A value that doesn't fit its column ends with the truncation marker, `…` by default, so a truncated value is always visible. The title and the header and footer texts are truncated the same way.
+
+Set `options.TruncationMarker` to change the marker, for example for a printer code page without `…` (437, 850):
+
+```c#
+options.TruncationMarker = "~";    // or "..."; "" truncates without a marker
+```
+
+When a column is narrower than the marker, the value is cut without it.
 
 Line breaks and tabs in the values are replaced by spaces, and trailing spaces are removed from every line.
 
@@ -400,7 +409,7 @@ await report.Bind(models).SaveToFileAsync("report.txt", cancellationToken: token
 await report.Bind(models).SavePagesToFilesAsync("pages", cancellationToken: token);
 ```
 
-- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET and .NET Core, not on .NET Framework, register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`.
+- The files are written in UTF-8 without BOM, unless an `Encoding` is given (for example `Encoding.GetEncoding(850)` for an old printer; on .NET and .NET Core, not on .NET Framework, register `CodePagesEncodingProvider.Instance` first). With a code page that has no `…`, truncated values end with `?`: set `options.TruncationMarker` to `"~"` or `"..."`.
 - Paths can be absolute or relative to the current directory; both methods return absolute paths.
 - Existing files are overwritten, and missing directories are created.
 - The filename pattern must contain `{page}` when there is more than one page; characters that are not valid in a filename are replaced by `_`.
