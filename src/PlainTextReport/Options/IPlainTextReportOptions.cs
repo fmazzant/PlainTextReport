@@ -101,5 +101,11 @@ namespace Mafesoft.PlainTextReport
         /// Page settings. When set, the report is split in pages with header and footer.
         /// </summary>
         PlainTextReportPageSettings Page { get; set; }
+
+        /// <summary>
+        /// Line separator of the report, for example "\r\n" for a printer or "\n" for the Linux tools.
+        /// When null or empty <see cref="System.Environment.NewLine"/> is used.
+        /// </summary>
+        string NewLine { get; set; }
     }
 }

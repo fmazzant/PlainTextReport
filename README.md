@@ -104,6 +104,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 | `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
+| `NewLine` | `null` | The line separator, for example `"\r\n"` for a printer or `"\n"` for the Linux tools. `null` means `Environment.NewLine`, so the same report differs on Windows and Linux. Used by `GetTextReport`, `WriteTo`, `WriteToAsync`, `SaveToFile`, `SavePagesToFiles` and `PlainTextReportPage.ToString()`. |
 
 ## Columns
 

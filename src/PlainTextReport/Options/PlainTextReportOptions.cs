@@ -27,6 +27,7 @@
 
 namespace Mafesoft.PlainTextReport
 {
+    using System;
     using System.Globalization;
 
     /// <summary>
@@ -72,5 +73,13 @@ namespace Mafesoft.PlainTextReport
 
         /// <inheritdoc />
         public PlainTextReportPageSettings Page { get; set; }
+
+        /// <inheritdoc />
+        public string NewLine { get; set; }
+
+        /// <summary>
+        /// Returns the line separator: <see cref="NewLine"/>, or <see cref="Environment.NewLine"/> when it is not set
+        /// </summary>
+        internal string GetNewLine() => string.IsNullOrEmpty(NewLine) ? Environment.NewLine : NewLine;
     }
 }

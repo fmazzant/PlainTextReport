@@ -95,7 +95,7 @@ namespace Mafesoft.PlainTextReport
         {
             var pages = this.GetPagesReport();
             var pageBreak = Options.Page?.PageBreak ?? string.Empty;
-            return string.Join(Environment.NewLine + pageBreak, pages.Select(page => page.ToString()));
+            return string.Join(Options.GetNewLine() + pageBreak, pages.Select(page => page.ToString()));
         }
 
         /// <summary>
@@ -207,12 +207,13 @@ namespace Mafesoft.PlainTextReport
         private IEnumerable<string> GetChunks(PlainTextReportPage[] pages)
         {
             var pageBreak = Options.Page?.PageBreak ?? string.Empty;
+            var newLine = Options.GetNewLine();
             for (int i = 0; i < pages.Length; i++)
             {
                 var text = pages[i].ToString();
-                yield return i == 0 ? text : Environment.NewLine + pageBreak + text;
+                yield return i == 0 ? text : newLine + pageBreak + text;
             }
-            yield return Environment.NewLine;
+            yield return newLine;
         }
 
         #endregion
@@ -269,7 +270,7 @@ namespace Mafesoft.PlainTextReport
             var paths = PreparePageFiles(directory, fileNamePattern, pages, date);
             for (int i = 0; i < pages.Length; i++)
             {
-                File.WriteAllText(paths[i], pages[i] + Environment.NewLine, encoding ?? DefaultEncoding);
+                File.WriteAllText(paths[i], pages[i] + Options.GetNewLine(), encoding ?? DefaultEncoding);
             }
             return paths;
         }
@@ -294,7 +295,7 @@ namespace Mafesoft.PlainTextReport
                 using (var stream = new FileStream(paths[i], FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, useAsync: true))
                 using (var writer = new StreamWriter(stream, encoding ?? DefaultEncoding, BufferSize))
                 {
-                    await writer.WriteAsync(pages[i] + Environment.NewLine).ConfigureAwait(false);
+                    await writer.WriteAsync(pages[i] + Options.GetNewLine()).ConfigureAwait(false);
                     await writer.FlushAsync().ConfigureAwait(false);
                 }
             }
