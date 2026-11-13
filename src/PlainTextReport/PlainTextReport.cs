@@ -263,8 +263,10 @@ namespace Mafesoft.PlainTextReport
         /// <returns>The absolute paths of the files, in page order</returns>
         public string[] SavePagesToFiles(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null)
         {
-            var pages = GetPagesReport();
-            var paths = PreparePageFiles(directory, fileNamePattern, pages);
+            // the date is read once, so the {date} of the pages and of the file names is the same
+            var date = PlainTextReportRenderer<T>.GetDate(Options);
+            var pages = new PlainTextReportRenderer<T>(Options).RenderPages(Values, date);
+            var paths = PreparePageFiles(directory, fileNamePattern, pages, date);
             for (int i = 0; i < pages.Length; i++)
             {
                 File.WriteAllText(paths[i], pages[i] + Environment.NewLine, encoding ?? DefaultEncoding);
@@ -282,8 +284,10 @@ namespace Mafesoft.PlainTextReport
         /// <returns>The absolute paths of the files, in page order</returns>
         public async Task<string[]> SavePagesToFilesAsync(string directory, string fileNamePattern = DefaultPageFileNamePattern, Encoding encoding = null, CancellationToken cancellationToken = default)
         {
-            var pages = GetPagesReport();
-            var paths = PreparePageFiles(directory, fileNamePattern, pages);
+            // the date is read once, so the {date} of the pages and of the file names is the same
+            var date = PlainTextReportRenderer<T>.GetDate(Options);
+            var pages = new PlainTextReportRenderer<T>(Options).RenderPages(Values, date);
+            var paths = PreparePageFiles(directory, fileNamePattern, pages, date);
             for (int i = 0; i < pages.Length; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -324,7 +328,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Checks the arguments, creates the directory and returns the absolute path of every page
         /// </summary>
-        private string[] PreparePageFiles(string directory, string fileNamePattern, PlainTextReportPage[] pages)
+        private string[] PreparePageFiles(string directory, string fileNamePattern, PlainTextReportPage[] pages, DateTime date)
         {
             if (string.IsNullOrWhiteSpace(directory))
             {
@@ -336,7 +340,6 @@ namespace Mafesoft.PlainTextReport
             }
 
             directory = Path.GetFullPath(directory);
-            var date = Options.Page?.Date ?? DateTime.Now;
             var title = Options.IsMultiLineTitle ? string.Join(" ", Options.MultiLineTitle) : Options.Title ?? string.Empty;
             var culture = Options.Culture ?? CultureInfo.InvariantCulture;
             var invalidChars = Path.GetInvalidFileNameChars();
