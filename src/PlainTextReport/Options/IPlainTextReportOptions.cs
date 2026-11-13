@@ -107,5 +107,12 @@ namespace Mafesoft.PlainTextReport
         /// When null or empty <see cref="System.Environment.NewLine"/> is used.
         /// </summary>
         string NewLine { get; set; }
+
+        /// <summary>
+        /// Text printed when a value is null, for example "-" or "n/a"; also when an intermediate value of a nested
+        /// property is null, and when a custom converter returns null. When null the cell is empty.
+        /// A column can override it with <see cref="PlainTextReportColumnStyle.NullText"/>.
+        /// </summary>
+        string NullText { get; set; }
     }
 }

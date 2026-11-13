@@ -75,6 +75,11 @@ namespace Mafesoft.PlainTextReport
         public IValueConverter Converter { get; internal set; }
 
         /// <summary>
+        /// True when the converter is the default one of the column type, not a custom one
+        /// </summary>
+        internal bool HasDefaultConverter { get; set; }
+
+        /// <summary>
         /// Value format provider
         /// </summary>
         private IFormatProvider _FormatProvider = null;

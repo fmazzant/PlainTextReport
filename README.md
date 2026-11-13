@@ -104,6 +104,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 | `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
+| `NullText` | `null` | The text printed for a `null` value, for example `"-"` or `"n/a"`. `null` means an empty cell. See [Null values](#null-values). |
 | `NewLine` | `null` | The line separator, for example `"\r\n"` for a printer or `"\n"` for the Linux tools. `null` means `Environment.NewLine`, so the same report differs on Windows and Linux. Used by `GetTextReport`, `WriteTo`, `WriteToAsync`, `SaveToFile`, `SavePagesToFiles` and `PlainTextReportPage.ToString()`. |
 
 ## Columns
@@ -141,7 +142,7 @@ A column can read a property of a property, at any depth:
 options.Columns.AddColumn(m => m.Customer.Address.City, style => { });
 ```
 
-- When an intermediate value is `null` (an order without a customer) the cell is empty, without a `NullReferenceException`.
+- When an intermediate value is `null` (an order without a customer) the cell is empty (or the [null text](#null-values)), without a `NullReferenceException`.
 - The default name of a nested column is its path, `Customer.Address.City`. Give it a `columnName` or a [caption](#column-style) to print something else.
 - `Nullable<T>` values work too: `m => m.ShippedOn.Value.Year` is empty when `ShippedOn` is `null`.
 
@@ -154,6 +155,7 @@ options.Columns.AddColumn(m => m.Customer.Address.City, style => { });
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
 | `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
+| `NullText` | `null` | The text printed for a `null` value of the column. When `null` it is the same as `options.NullText`. See [Null values](#null-values). |
 
 ```c#
 options.Columns.AddColumn(m => m.Price, style =>
@@ -165,6 +167,19 @@ options.Columns.AddColumn(m => m.Price, style =>
 ```
 
 The caption changes only the header: the column name is still used to identify the column.
+
+### Null values
+
+A `null` value is an empty cell. Set `NullText` to print a placeholder instead, for the whole report or for a single column:
+
+```c#
+options.NullText = "-";                                                    // whole report
+options.Columns.AddColumn(m => m.Name, style => style.NullText = "n/a");  // single column, wins over the report
+```
+
+- It is also used when an intermediate value of a nested property is `null` (`m => m.Customer.Name` with `Customer == null`).
+- A custom converter still receives the `null` values, so it can print them its own way; when a converter returns `null`, `NullText` is used.
+- `style.NullText = ""` keeps the cells of a column empty even when the report has a `NullText`.
 
 ### Column width in characters or percentage
 

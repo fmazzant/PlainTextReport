@@ -195,7 +195,8 @@ namespace Mafesoft.PlainTextReport
                 ColumnExpression = expression,
                 ColumnFormat = columnFormat,
                 ColumnFormatProvider = formatProvider,
-                Converter = converter
+                Converter = converter,
+                HasDefaultConverter = valueConverter == null
             });
         }
 
