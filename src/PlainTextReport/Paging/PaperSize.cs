@@ -32,7 +32,9 @@ namespace Mafesoft.PlainTextReport
 
     /// <summary>
     /// A paper size, in millimeters.
-    /// The ISO 216 A series (A0 ... A10) is available with <see cref="A(int)"/> or with the static properties.
+    /// The ISO 216 A series (A0 ... A10) is available with <see cref="A(int)"/> or with the static properties,
+    /// the B series with <see cref="B(int)"/>, and the US sizes (Letter, Legal, Tabloid, Executive) and the
+    /// continuous form paper with the static properties.
     /// </summary>
     public sealed class PaperSize
     {
@@ -97,6 +99,28 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
+        /// Returns the ISO 216 B paper size: B0 is 1000 x 1414 mm, every next size halves the long side.
+        /// </summary>
+        /// <param name="number">From 0 (B0) to 10 (B10)</param>
+        /// <returns></returns>
+        public static PaperSize B(int number)
+        {
+            if (number < 0 || number > 10)
+            {
+                throw new ArgumentOutOfRangeException(nameof(number), "The B series goes from B0 to B10.");
+            }
+
+            int shortSide = 1000, longSide = 1414;
+            for (int i = 0; i < number; i++)
+            {
+                var half = longSide / 2;
+                longSide = shortSide;
+                shortSide = half;
+            }
+            return new PaperSize("B" + number.ToString(CultureInfo.InvariantCulture), shortSide, longSide);
+        }
+
+        /// <summary>
         /// The name of a custom paper size created without a name
         /// </summary>
         public const string CustomName = "Custom";
@@ -137,6 +161,26 @@ namespace Mafesoft.PlainTextReport
         public static PaperSize A9 => A(9);
         /// <summary>A10, 26 x 37 mm</summary>
         public static PaperSize A10 => A(10);
+
+        /// <summary>B4, 250 x 353 mm</summary>
+        public static PaperSize B4 => B(4);
+        /// <summary>B5, 176 x 250 mm</summary>
+        public static PaperSize B5 => B(5);
+
+        /// <summary>US Letter, 8.5 x 11 in (215.9 x 279.4 mm)</summary>
+        public static PaperSize Letter => new PaperSize("Letter", 215.9, 279.4);
+        /// <summary>US Legal, 8.5 x 14 in (215.9 x 355.6 mm)</summary>
+        public static PaperSize Legal => new PaperSize("Legal", 215.9, 355.6);
+        /// <summary>US Tabloid (Ledger in landscape), 11 x 17 in (279.4 x 431.8 mm)</summary>
+        public static PaperSize Tabloid => new PaperSize("Tabloid", 279.4, 431.8);
+        /// <summary>US Executive, 7.25 x 10.5 in (184.15 x 266.7 mm)</summary>
+        public static PaperSize Executive => new PaperSize("Executive", 184.15, 266.7);
+
+        /// <summary>
+        /// Continuous form paper for dot-matrix printers, 240 mm x 12 in (240 x 304.8 mm):
+        /// the common fanfold paper with the tractor holes
+        /// </summary>
+        public static PaperSize ContinuousForm => new PaperSize("ContinuousForm", 240, 304.8);
 
         /// <summary>
         /// Returns the name and the size of the paper
