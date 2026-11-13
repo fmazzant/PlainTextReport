@@ -149,7 +149,7 @@ namespace Mafesoft.PlainTextReport
         /// Writes the whole report, with the page breaks between the pages and a final line break
         /// </summary>
         /// <param name="writer">The writer; it is not closed</param>
-        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        /// <param name="cancellationToken">Stops the writing before the next line or page break; the text already written is kept</param>
         public async Task WriteToAsync(TextWriter writer, CancellationToken cancellationToken = default)
         {
             if (writer == null)
@@ -190,7 +190,7 @@ namespace Mafesoft.PlainTextReport
         /// <param name="stream">The stream; it is not closed</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default. The BOM of the encoding, if any,
         /// is written only at the beginning of a seekable stream.</param>
-        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        /// <param name="cancellationToken">Stops the writing before the next line or page break; the text already written is kept</param>
         public async Task WriteToAsync(Stream stream, Encoding encoding = null, CancellationToken cancellationToken = default)
         {
             if (stream == null)
@@ -230,7 +230,7 @@ namespace Mafesoft.PlainTextReport
         /// <param name="path">The file path, absolute or relative to the current directory; the file is overwritten
         /// and its directory is created when missing</param>
         /// <param name="encoding">The encoding; UTF-8 without BOM by default</param>
-        /// <param name="cancellationToken">Stops the writing between two pages</param>
+        /// <param name="cancellationToken">Stops the writing before the next line or page break; the text already written is kept</param>
         /// <returns>The absolute path of the file</returns>
         public async Task<string> SaveToFileAsync(string path, Encoding encoding = null, CancellationToken cancellationToken = default)
         {
