@@ -108,6 +108,81 @@ namespace Mafesoft.PlainTextReport
         /// <returns></returns>
         public PlainTextReportPage[] RenderPages(IEnumerable<T> values, DateTime date)
         {
+            var layout = GetLayout(values);
+            if (layout.Page == null)
+            {
+                return new[] { new PlainTextReportPage(1, 1, GetLines(layout).ToArray(), newLine) };
+            }
+
+            var pages = Paginate(layout, date).ToList();
+            return pages.Select((lines, i) => new PlainTextReportPage(i + 1, pages.Count, lines, newLine)).ToArray();
+        }
+
+        /// <summary>
+        /// Renders the values as the text of the whole report, a piece at a time: the lines, the line breaks
+        /// and the page breaks, followed by a final line break. The text is the same as the pages joined by
+        /// the line break and the page break. Only the cells needed to compute the column widths or the
+        /// number of pages are kept in memory: when every column has a fixed width and the page bands don't
+        /// use {pages}, the values are read one at a time while the text is written.
+        /// </summary>
+        /// <param name="values"></param>
+        /// <returns></returns>
+        public IEnumerable<string> RenderText(IEnumerable<T> values)
+        {
+            var layout = GetLayout(values);
+            var first = true;
+            if (layout.Page == null)
+            {
+                foreach (var line in GetLines(layout))
+                {
+                    if (!first) yield return newLine;
+                    first = false;
+                    yield return line;
+                }
+            }
+            else
+            {
+                var pageBreak = layout.Page.PageBreak ?? string.Empty;
+                foreach (var page in Paginate(layout, GetDate(options)))
+                {
+                    for (int k = 0; k < page.Length; k++)
+                    {
+                        if (!first)
+                        {
+                            yield return newLine;
+                            if (k == 0 && pageBreak.Length > 0) yield return pageBreak;
+                        }
+                        first = false;
+                        yield return page[k];
+                    }
+                }
+            }
+            yield return newLine;
+        }
+
+        /// <summary>
+        /// The layout of the report: the column widths, the title and the column header, and the cells of the rows
+        /// </summary>
+        private sealed class Layout
+        {
+            public PlainTextReportPageSettings Page;
+            public int[] Widths;
+            public string Separator;
+            public List<string> Title;
+            public List<string> ColumnHeader;
+
+            /// <summary>
+            /// The cells of every row: a list when they are needed more than once, otherwise read while the report is written
+            /// </summary>
+            public IEnumerable<string[]> Rows;
+        }
+
+        /// <summary>
+        /// Validates the settings and computes the layout. The values are read now only when the widths
+        /// or the number of pages depend on them; otherwise they are read while the rows are rendered.
+        /// </summary>
+        private Layout GetLayout(IEnumerable<T> values)
+        {
             var page = options.Page;
             var maxWidth = options.Width;
             if (page != null)
@@ -116,25 +191,59 @@ namespace Mafesoft.PlainTextReport
                 maxWidth = maxWidth > 0 ? Math.Min(maxWidth, page.PrintableWidth) : page.PrintableWidth;
             }
 
-            var rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index)).ToList();
+            IEnumerable<string[]> rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index));
+            if (columns.Any(column => NeedsValues(column, maxWidth)) || (page != null && UsesPageCount(page)))
+            {
+                rows = rows.ToList();
+            }
+
             var widths = GetColumnWidths(rows, maxWidth);
             var separator = options.ShowColumnSeparator ? $" {options.ColumnSeparator} " : " ";
             var tableWidth = columns.Length == 0 ? 0 : widths.Sum() + separator.Length * (columns.Length - 1);
 
-            var title = GetTitleLines(tableWidth, maxWidth);
-            var columnHeader = GetColumnHeaderLines(widths, separator);
-            var body = GetRowLines(rows, widths, separator);
-
-            if (page == null)
+            return new Layout
             {
-                var lines = new List<string>(title.Count + columnHeader.Count + body.Count);
-                lines.AddRange(title);
-                lines.AddRange(columnHeader);
-                lines.AddRange(body.SelectMany(row => row));
-                return new[] { new PlainTextReportPage(1, 1, lines.ToArray(), newLine) };
-            }
+                Page = page,
+                Widths = widths,
+                Separator = separator,
+                Title = GetTitleLines(tableWidth, maxWidth),
+                ColumnHeader = GetColumnHeaderLines(widths, separator),
+                Rows = rows,
+            };
+        }
 
-            return Paginate(page, title, columnHeader, body, date);
+        /// <summary>
+        /// Returns true when the width of the column depends on its values
+        /// </summary>
+        private static bool NeedsValues(PlainTextReportColumn column, int maxWidth)
+        {
+            // a percentage column without a report width is automatic
+            return !(column.Style.Width is ColumnWidth width) || (width.IsPercent && maxWidth <= 0);
+        }
+
+        /// <summary>
+        /// Returns true when the header or the footer prints the number of pages
+        /// </summary>
+        private static bool UsesPageCount(PlainTextReportPageSettings page)
+        {
+            return new[] { page.Header, page.Footer }
+                .Where(band => band != null)
+                .SelectMany(band => new[] { band.Left, band.Center, band.Right })
+                .Any(text => !string.IsNullOrEmpty(text) && Placeholder.Matches(text).Cast<Match>()
+                    .Any(match => string.Equals(match.Groups[1].Value, "pages", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        /// <summary>
+        /// Returns the lines of the report without pages
+        /// </summary>
+        private IEnumerable<string> GetLines(Layout layout)
+        {
+            foreach (var line in layout.Title) yield return line;
+            foreach (var line in layout.ColumnHeader) yield return line;
+            foreach (var row in GetRowLines(layout.Rows, layout.Widths, layout.Separator))
+            {
+                foreach (var line in row) yield return line;
+            }
         }
 
         /// <summary>
@@ -210,14 +319,13 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the lines of every row: one line, or more when a multi-line value wraps
+        /// Returns the lines of every row, while the rows are read: one line, or more when a multi-line value wraps
         /// </summary>
-        private List<string[]> GetRowLines(List<string[]> rows, int[] widths, string separator)
+        private IEnumerable<string[]> GetRowLines(IEnumerable<string[]> rows, int[] widths, string separator)
         {
-            var result = new List<string[]>(rows.Count);
             if (columns.Length == 0)
             {
-                return result;
+                yield break;
             }
 
             var alignments = columns.Select(GetAlignment).ToArray();
@@ -243,9 +351,24 @@ namespace Mafesoft.PlainTextReport
                     }
                     lines[k] = builder.ToString().TrimEnd();
                 }
-                result.Add(lines);
+                yield return lines;
             }
-            return result;
+        }
+
+        /// <summary>
+        /// Returns the number of lines of a row, without composing them
+        /// </summary>
+        private int GetRowHeight(string[] cells, int[] widths)
+        {
+            var height = 1;
+            for (int i = 0; i < cells.Length; i++)
+            {
+                if (multiLine[i])
+                {
+                    height = Math.Max(height, Wrap(cells[i], widths[i], textWidth).Length);
+                }
+            }
+            return height;
         }
 
         /// <summary>
@@ -346,7 +469,9 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Returns the width of every column, fitted in the maximum width
         /// </summary>
-        private int[] GetColumnWidths(List<string[]> rows, int maxWidth)
+        /// <param name="rows">The cells of the rows; they are read only for the columns that fit their values</param>
+        /// <param name="maxWidth">The report width, 0 for no limit</param>
+        private int[] GetColumnWidths(IEnumerable<string[]> rows, int maxWidth)
         {
             var widths = new int[columns.Length];
             var percents = new double[columns.Length];
@@ -539,8 +664,13 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Splits the report in pages, each one with header, body and footer and exactly the page height
         /// </summary>
-        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string[]> rows, DateTime date)
+        /// <remarks>
+        /// The pages are composed one at a time, while the rows are read. When the header or the footer
+        /// prints {pages}, the rows are measured first to count the pages.
+        /// </remarks>
+        private IEnumerable<string[]> Paginate(Layout layout, DateTime date)
         {
+            var page = layout.Page;
             var header = page.Header ?? new PlainTextReportPageBand();
             var footer = page.Footer ?? new PlainTextReportPageBand();
             var capacity = page.PrintableHeight - GetBandHeight(header) - GetBandHeight(footer);
@@ -549,59 +679,22 @@ namespace Mafesoft.PlainTextReport
                 throw new InvalidOperationException($"The page {page.PaperSize} has no room for the body: reduce the header, the footer or the margins.");
             }
 
-            // split the body in pages; the lines of a multi-line row stay on the same page,
-            // unless the row is longer than a whole page
-            var bodies = new List<List<string>>();
-            var nextPageCapacity = capacity - (page.RepeatColumnHeader ? columnHeader.Count : 0);
-            var row = 0;
-            var rowLine = 0;
-            do
+            // the number of pages, only when it is printed: the rows are a list then
+            var count = 0;
+            if (UsesPageCount(page))
             {
-                var first = bodies.Count == 0;
-                var lines = new List<string>(capacity);
-                if (first) lines.AddRange(title);
-                if (first || page.RepeatColumnHeader) lines.AddRange(columnHeader);
-
-                var start = lines.Count;
-                if (start > capacity || (!first && start == capacity && row < rows.Count))
-                {
-                    throw new InvalidOperationException($"The page {page.PaperSize} is too small for the title and the column header.");
-                }
-
-                while (row < rows.Count && lines.Count < capacity)
-                {
-                    var left = rows[row].Length - rowLine;
-                    var free = capacity - lines.Count;
-                    if (left > free && lines.Count > start && rowLine == 0 && rows[row].Length <= nextPageCapacity)
-                    {
-                        // the row fits on the next page
-                        break;
-                    }
-
-                    var take = Math.Min(left, free);
-                    for (int k = 0; k < take; k++)
-                    {
-                        lines.Add(rows[row][rowLine++]);
-                    }
-                    if (rowLine == rows[row].Length)
-                    {
-                        row++;
-                        rowLine = 0;
-                    }
-                }
-                bodies.Add(lines);
+                var heights = layout.Rows.Select(cells => new string[GetRowHeight(cells, layout.Widths)]);
+                count = SplitBodies(page, capacity, layout.Title, layout.ColumnHeader, columns.Length == 0 ? Enumerable.Empty<string[]>() : heights).Count();
             }
-            while (row < rows.Count);
 
-            // compose the pages
-            var count = bodies.Count;
+            var rows = GetRowLines(layout.Rows, layout.Widths, layout.Separator);
             var titleText = options.IsMultiLineTitle ? string.Join(" ", options.MultiLineTitle) : options.Title ?? string.Empty;
             var margin = new string(' ', page.MarginLeft);
-            var pages = new PlainTextReportPage[count];
+            var number = 0;
 
-            for (int i = 0; i < count; i++)
+            foreach (var body in SplitBodies(page, capacity, layout.Title, layout.ColumnHeader, rows))
             {
-                var number = i + 1;
+                number++;
                 var lines = new List<string>(page.Height);
 
                 lines.AddRange(Enumerable.Repeat(string.Empty, page.MarginTop));
@@ -612,8 +705,8 @@ namespace Mafesoft.PlainTextReport
                     if (header.ShowSeparator) lines.Add(new string(header.SeparatorChar, page.PrintableWidth));
                 }
 
-                lines.AddRange(bodies[i]);
-                lines.AddRange(Enumerable.Repeat(string.Empty, capacity - bodies[i].Count));
+                lines.AddRange(body);
+                lines.AddRange(Enumerable.Repeat(string.Empty, capacity - body.Count));
 
                 if (!footer.IsEmpty)
                 {
@@ -623,13 +716,64 @@ namespace Mafesoft.PlainTextReport
 
                 lines.AddRange(Enumerable.Repeat(string.Empty, page.MarginBottom));
 
-                var pageLines = margin.Length == 0
+                yield return margin.Length == 0
                     ? lines.ToArray()
                     : lines.Select(line => line.Length == 0 ? line : margin + line).ToArray();
-                pages[i] = new PlainTextReportPage(number, count, pageLines, newLine);
             }
+        }
 
-            return pages;
+        /// <summary>
+        /// Splits the body in pages, while the rows are read; the lines of a multi-line row stay on the same page,
+        /// unless the row is longer than a whole page. There is always at least one page.
+        /// </summary>
+        /// <param name="rows">The lines of every row; only their number is used when the pages are just counted</param>
+        private static IEnumerable<List<string>> SplitBodies(PlainTextReportPageSettings page, int capacity, List<string> title, List<string> columnHeader, IEnumerable<string[]> rows)
+        {
+            var nextPageCapacity = capacity - (page.RepeatColumnHeader ? columnHeader.Count : 0);
+            using (var enumerator = rows.GetEnumerator())
+            {
+                var row = enumerator.MoveNext() ? enumerator.Current : null;
+                var rowLine = 0;
+                var first = true;
+                do
+                {
+                    var lines = new List<string>(capacity);
+                    if (first) lines.AddRange(title);
+                    if (first || page.RepeatColumnHeader) lines.AddRange(columnHeader);
+
+                    var start = lines.Count;
+                    if (start > capacity || (!first && start == capacity && row != null))
+                    {
+                        throw new InvalidOperationException($"The page {page.PaperSize} is too small for the title and the column header.");
+                    }
+
+                    while (row != null && lines.Count < capacity)
+                    {
+                        var left = row.Length - rowLine;
+                        var free = capacity - lines.Count;
+                        if (left > free && lines.Count > start && rowLine == 0 && row.Length <= nextPageCapacity)
+                        {
+                            // the row fits on the next page
+                            break;
+                        }
+
+                        var take = Math.Min(left, free);
+                        for (int k = 0; k < take; k++)
+                        {
+                            lines.Add(row[rowLine++]);
+                        }
+                        if (rowLine == row.Length)
+                        {
+                            row = enumerator.MoveNext() ? enumerator.Current : null;
+                            rowLine = 0;
+                        }
+                    }
+
+                    first = false;
+                    yield return lines;
+                }
+                while (row != null);
+            }
         }
 
         /// <summary>

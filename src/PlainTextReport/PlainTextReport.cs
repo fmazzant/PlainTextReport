@@ -137,9 +137,10 @@ namespace Mafesoft.PlainTextReport
             {
                 throw new ArgumentNullException(nameof(writer));
             }
-            foreach (var chunk in GetChunks(GetPagesReport()))
+            // the text is written while it is rendered, so the whole report is never in memory
+            foreach (var text in new PlainTextReportRenderer<T>(Options).RenderText(Values))
             {
-                writer.Write(chunk);
+                writer.Write(text);
             }
             writer.Flush();
         }
@@ -155,10 +156,12 @@ namespace Mafesoft.PlainTextReport
             {
                 throw new ArgumentNullException(nameof(writer));
             }
-            foreach (var chunk in GetChunks(GetPagesReport()))
+            cancellationToken.ThrowIfCancellationRequested();
+            // the text is written while it is rendered, so the whole report is never in memory
+            foreach (var text in new PlainTextReportRenderer<T>(Options).RenderText(Values))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await writer.WriteAsync(chunk).ConfigureAwait(false);
+                await writer.WriteAsync(text).ConfigureAwait(false);
             }
             await writer.FlushAsync().ConfigureAwait(false);
         }
@@ -198,22 +201,6 @@ namespace Mafesoft.PlainTextReport
             {
                 await WriteToAsync(writer, cancellationToken).ConfigureAwait(false);
             }
-        }
-
-        /// <summary>
-        /// Returns the text of the report a page at a time: every page after the first one
-        /// starts with the page break, and the report ends with a line break
-        /// </summary>
-        private IEnumerable<string> GetChunks(PlainTextReportPage[] pages)
-        {
-            var pageBreak = Options.Page?.PageBreak ?? string.Empty;
-            var newLine = Options.GetNewLine();
-            for (int i = 0; i < pages.Length; i++)
-            {
-                var text = pages[i].ToString();
-                yield return i == 0 ? text : newLine + pageBreak + text;
-            }
-            yield return newLine;
         }
 
         #endregion
