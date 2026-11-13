@@ -77,6 +77,9 @@ namespace Mafesoft.PlainTextReport
         /// <inheritdoc />
         public string NewLine { get; set; }
 
+        /// <inheritdoc />
+        public string NullText { get; set; }
+
         /// <summary>
         /// Returns the line separator: <see cref="NewLine"/>, or <see cref="Environment.NewLine"/> when it is not set
         /// </summary>

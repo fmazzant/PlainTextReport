@@ -52,6 +52,7 @@ namespace Mafesoft.PlainTextReport
         private readonly Func<T, object>[] getters;
         private readonly bool[] multiLine;
         private readonly IFormatProvider[] formatProviders;
+        private readonly string[] nullTexts;
         private readonly CultureInfo culture;
         private readonly string newLine;
 
@@ -69,6 +70,7 @@ namespace Mafesoft.PlainTextReport
             this.newLine = options.GetNewLine();
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
+            this.nullTexts = columns.Select(c => c.Style.NullText ?? options.NullText).ToArray();
         }
 
         /// <summary>
@@ -249,7 +251,11 @@ namespace Mafesoft.PlainTextReport
             {
                 var column = columns[i];
                 var value = model == null ? null : getters[i](model);
-                var text = column.Converter.Convert(value, null, formatProviders[i]);
+                // a null value is the null text, unless a custom converter prints it; a null converted text is the null text too
+                var text = value == null && column.HasDefaultConverter
+                    ? null
+                    : column.Converter.Convert(value, null, formatProviders[i]);
+                text = text ?? nullTexts[i];
                 cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }
             return cells;

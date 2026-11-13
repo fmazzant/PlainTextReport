@@ -61,5 +61,11 @@ namespace Mafesoft.PlainTextReport
         /// When null <see cref="PlainTextReportOptions.MultiLineRows"/> is used.
         /// </summary>
         public bool? MultiLine { get; set; }
+
+        /// <summary>
+        /// Text printed when the value is null, for example "-" or "n/a"; also when an intermediate value of a nested
+        /// property is null, and when a custom converter returns null. When null <see cref="PlainTextReportOptions.NullText"/> is used.
+        /// </summary>
+        public string NullText { get; set; }
     }
 }
