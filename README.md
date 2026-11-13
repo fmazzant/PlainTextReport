@@ -9,6 +9,8 @@
 
 PlainTextReport is a .NET library to generate a plain text report from a collection of objects. The columns are defined with lambda expressions, as in [TinyCsv](https://github.com/fmazzant/TinyCsv), and the report can be split in pages ready to print, with a header and a footer on every page.
 
+If PlainTextReport is useful to you, consider [supporting the project](#support). ☕
+
 ## Why PlainTextReport
 
 | Feature | Description |
