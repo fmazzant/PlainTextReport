@@ -118,7 +118,8 @@ namespace Mafesoft.PlainTextReport
         public string PageBreak { get; set; } = "\f";
 
         /// <summary>
-        /// Date used by the {date} placeholder. When null the current date and time is used.
+        /// Date used by the {date} placeholder. When null the current date and time is used, read once per report:
+        /// the pages and the file names of SavePagesToFiles have the same date.
         /// </summary>
         public DateTime? Date { get; set; }
 

@@ -86,6 +86,17 @@ namespace Mafesoft.PlainTextReport
         /// <returns></returns>
         public PlainTextReportPage[] RenderPages(IEnumerable<T> values)
         {
+            return RenderPages(values, GetDate(options));
+        }
+
+        /// <summary>
+        /// Renders the values as pages, with the given date for the {date} placeholder
+        /// </summary>
+        /// <param name="values"></param>
+        /// <param name="date">The date of the report: read it once with <see cref="GetDate"/> and use it everywhere</param>
+        /// <returns></returns>
+        public PlainTextReportPage[] RenderPages(IEnumerable<T> values, DateTime date)
+        {
             var page = options.Page;
             var maxWidth = options.Width;
             if (page != null)
@@ -112,7 +123,15 @@ namespace Mafesoft.PlainTextReport
                 return new[] { new PlainTextReportPage(1, 1, lines.ToArray()) };
             }
 
-            return Paginate(page, title, columnHeader, body);
+            return Paginate(page, title, columnHeader, body, date);
+        }
+
+        /// <summary>
+        /// Returns the date of the report: <see cref="PlainTextReportPageSettings.Date"/>, or the current date and time
+        /// </summary>
+        internal static DateTime GetDate(PlainTextReportOptions options)
+        {
+            return options.Page?.Date ?? DateTime.Now;
         }
 
         #region Table
@@ -458,7 +477,7 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Splits the report in pages, each one with header, body and footer and exactly the page height
         /// </summary>
-        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string[]> rows)
+        private PlainTextReportPage[] Paginate(PlainTextReportPageSettings page, List<string> title, List<string> columnHeader, List<string[]> rows, DateTime date)
         {
             var header = page.Header ?? new PlainTextReportPageBand();
             var footer = page.Footer ?? new PlainTextReportPageBand();
@@ -514,7 +533,6 @@ namespace Mafesoft.PlainTextReport
 
             // compose the pages
             var count = bodies.Count;
-            var date = page.Date ?? DateTime.Now;
             var titleText = options.IsMultiLineTitle ? string.Join(" ", options.MultiLineTitle) : options.Title ?? string.Empty;
             var margin = new string(' ', page.MarginLeft);
             var pages = new PlainTextReportPage[count];

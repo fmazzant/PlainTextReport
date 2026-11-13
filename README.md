@@ -317,7 +317,7 @@ Values at 10 characters and 6 lines per inch, margins included. `Width`, `Height
 | `Header`, `Footer` | empty | The bands printed on every page. |
 | `RepeatColumnHeader` | `true` | Prints the column header on every page, not only on the first one. |
 | `PageBreak` | `"\f"` | Text put at the beginning of every page after the first one by `GetTextReport` (form feed, so a printer starts a new sheet). Set `""` to have no break character. |
-| `Date` | now | Date used by the `{date}` placeholder. |
+| `Date` | now | Date used by the `{date}` placeholder. When `null` the current date and time is read once per report, so the pages and the file names of `SavePagesToFiles` have the same date. |
 
 The table is fitted in the printable width (or in `options.Width`, if it is smaller). The title is printed only on the first page.
 

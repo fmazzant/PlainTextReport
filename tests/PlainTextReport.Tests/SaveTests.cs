@@ -86,6 +86,47 @@ namespace Mafesoft.PlainTextReport.Tests
             Assert.All(paths, path => Assert.True(File.Exists(path)));
         }
 
+        private static IPlainTextReport<Item> CreateReportWithoutDate()
+        {
+            var page = new PlainTextReportPageSettings(PaperSize.Custom("Test", 25.4 * 4, 25.4 * 3))
+            {
+                CharactersPerInch = 10,
+                LinesPerInch = 4,
+            };
+            page.Header.Left = "{date:yyyyMMddHHmmssfffffff}";
+            return new PlainTextReport<Item>(options =>
+            {
+                options.Page = page;
+                options.Columns.AddColumn(m => m.Id, style => { });
+            }).Bind(Enumerable.Range(1, 25).Select(i => new Item { Id = i }));
+        }
+
+        [Fact]
+        public void SavePagesToFiles_uses_the_same_date_for_the_pages_and_the_file_names()
+        {
+            var paths = CreateReportWithoutDate().SavePagesToFiles(directory, "{date:yyyyMMddHHmmssfffffff}-{page}.txt");
+
+            Assert.True(paths.Length > 1);
+            foreach (var path in paths)
+            {
+                var date = Path.GetFileName(path).Split('-')[0];
+                Assert.Equal(date, File.ReadAllLines(path)[0]);
+            }
+        }
+
+        [Fact]
+        public async Task SavePagesToFilesAsync_uses_the_same_date_for_the_pages_and_the_file_names()
+        {
+            var paths = await CreateReportWithoutDate().SavePagesToFilesAsync(directory, "{date:yyyyMMddHHmmssfffffff}-{page}.txt");
+
+            Assert.True(paths.Length > 1);
+            foreach (var path in paths)
+            {
+                var date = Path.GetFileName(path).Split('-')[0];
+                Assert.Equal(date, File.ReadAllLines(path)[0]);
+            }
+        }
+
         [Fact]
         public void SavePagesToFiles_requires_a_different_name_for_every_page()
         {
