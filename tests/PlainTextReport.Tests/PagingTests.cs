@@ -58,6 +58,23 @@ namespace Mafesoft.PlainTextReport.Tests
         }
 
         [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        public void Custom_paper_without_a_name_is_named_Custom(string? name)
+        {
+            var paper = PaperSize.Custom(name!, 50.8, 76.2);
+
+            Assert.Equal("Custom", paper.Name);
+            Assert.Equal("Custom (50.8 x 76.2 mm)", paper.ToString());
+        }
+
+        [Fact]
+        public void Custom_paper_keeps_its_name()
+        {
+            Assert.Equal("Label", PaperSize.Custom("Label", 50.8, 76.2).Name);
+        }
+
+        [Theory]
         [InlineData(4, PageOrientation.Portrait, 82, 70)]
         [InlineData(4, PageOrientation.Landscape, 116, 49)]
         [InlineData(3, PageOrientation.Portrait, 116, 99)]
