@@ -58,6 +58,69 @@ namespace Mafesoft.PlainTextReport.Tests
         }
 
         [Theory]
+        [InlineData(0, 1000, 1414)]
+        [InlineData(1, 707, 1000)]
+        [InlineData(4, 250, 353)]
+        [InlineData(5, 176, 250)]
+        [InlineData(10, 31, 44)]
+        public void B_series_has_the_iso_sizes(int number, double shortSide, double longSide)
+        {
+            var paper = PaperSize.B(number);
+
+            Assert.Equal("B" + number, paper.Name);
+            Assert.Equal(shortSide, paper.ShortSideMillimeters);
+            Assert.Equal(longSide, paper.LongSideMillimeters);
+        }
+
+        [Fact]
+        public void B_series_is_limited_to_B10()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => PaperSize.B(11));
+            Assert.Throws<ArgumentOutOfRangeException>(() => PaperSize.B(-1));
+        }
+
+        public static TheoryData<PaperSize, string, double, double> NamedPapers => new()
+        {
+            { PaperSize.B4, "B4", 250, 353 },
+            { PaperSize.B5, "B5", 176, 250 },
+            { PaperSize.Letter, "Letter", 215.9, 279.4 },
+            { PaperSize.Legal, "Legal", 215.9, 355.6 },
+            { PaperSize.Tabloid, "Tabloid", 279.4, 431.8 },
+            { PaperSize.Executive, "Executive", 184.15, 266.7 },
+            { PaperSize.ContinuousForm, "ContinuousForm", 240, 304.8 },
+        };
+
+        [Theory]
+        [MemberData(nameof(NamedPapers))]
+        public void Named_papers_have_their_sizes(PaperSize paper, string name, double shortSide, double longSide)
+        {
+            Assert.Equal(name, paper.Name);
+            Assert.Equal(shortSide, paper.ShortSideMillimeters);
+            Assert.Equal(longSide, paper.LongSideMillimeters);
+        }
+
+        // the values of the table in the README
+        [Theory]
+        [InlineData("B4", 98, 83, 138, 59)]
+        [InlineData("B5", 69, 59, 98, 41)]
+        [InlineData("Letter", 85, 66, 110, 51)]
+        [InlineData("Legal", 85, 84, 140, 51)]
+        [InlineData("Tabloid", 110, 102, 170, 66)]
+        [InlineData("Executive", 72, 63, 105, 43)]
+        [InlineData("ContinuousForm", 94, 72, 120, 56)]
+        public void Named_papers_are_converted_to_characters_and_lines(string name, int portraitWidth, int portraitHeight, int landscapeWidth, int landscapeHeight)
+        {
+            var paper = (PaperSize)typeof(PaperSize).GetProperty(name)!.GetValue(null)!;
+            var portrait = new PlainTextReportPageSettings(paper, PageOrientation.Portrait);
+            var landscape = new PlainTextReportPageSettings(paper, PageOrientation.Landscape);
+
+            Assert.Equal(portraitWidth, portrait.Width);
+            Assert.Equal(portraitHeight, portrait.Height);
+            Assert.Equal(landscapeWidth, landscape.Width);
+            Assert.Equal(landscapeHeight, landscape.Height);
+        }
+
+        [Theory]
         [InlineData(null)]
         [InlineData("")]
         public void Custom_paper_without_a_name_is_named_Custom(string? name)

@@ -279,13 +279,20 @@ Every page has exactly the height of the paper, so the footer is always at the b
 
 A plain text page is measured in characters and lines, so the paper size is converted with the printer pitch: `CharactersPerInch` (default `10`) and `LinesPerInch` (default `6`).
 
-The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. `PaperSize.Custom(name, width, height)` creates any other size in millimeters; when `name` is `null` or empty the paper is named `Custom`. Each paper can be used in `Portrait` or `Landscape`.
+The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. The B series is available with `PaperSize.B(n)` (`B0` ... `B10`), and the common `PaperSize.B4` and `PaperSize.B5` as properties. The US sizes are `PaperSize.Letter`, `PaperSize.Legal`, `PaperSize.Tabloid` and `PaperSize.Executive`, and `PaperSize.ContinuousForm` is the 240 mm x 12" fanfold paper of the dot-matrix printers. `PaperSize.Custom(name, width, height)` creates any other size in millimeters; when `name` is `null` or empty the paper is named `Custom`. Each paper can be used in `Portrait` or `Landscape`.
 
 | Paper | Size (mm) | Portrait (chars x lines) | Landscape (chars x lines) |
 |---|---|---|---|
 | A3 | 297 x 420 | 116 x 99 | 165 x 70 |
 | A4 | 210 x 297 | 82 x 70 | 116 x 49 |
 | A5 | 148 x 210 | 58 x 49 | 82 x 34 |
+| B4 | 250 x 353 | 98 x 83 | 138 x 59 |
+| B5 | 176 x 250 | 69 x 59 | 98 x 41 |
+| Letter | 215.9 x 279.4 | 85 x 66 | 110 x 51 |
+| Legal | 215.9 x 355.6 | 85 x 84 | 140 x 51 |
+| Tabloid | 279.4 x 431.8 | 110 x 102 | 170 x 66 |
+| Executive | 184.15 x 266.7 | 72 x 63 | 105 x 43 |
+| ContinuousForm | 240 x 304.8 | 94 x 72 | 120 x 56 |
 
 Values at 10 characters and 6 lines per inch, margins included. `Width`, `Height`, `PrintableWidth` and `PrintableHeight` of the page settings return the actual values.
 
