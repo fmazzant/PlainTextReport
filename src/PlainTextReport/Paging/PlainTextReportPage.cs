@@ -34,11 +34,14 @@ namespace Mafesoft.PlainTextReport
     /// </summary>
     public sealed class PlainTextReportPage
     {
-        internal PlainTextReportPage(int number, int count, string[] lines)
+        private readonly string newLine;
+
+        internal PlainTextReportPage(int number, int count, string[] lines, string newLine = null)
         {
             Number = number;
             Count = count;
             Lines = lines;
+            this.newLine = newLine;
         }
 
         /// <summary>
@@ -57,9 +60,9 @@ namespace Mafesoft.PlainTextReport
         public string[] Lines { get; }
 
         /// <summary>
-        /// Returns the page as text
+        /// Returns the page as text, with the lines separated by <see cref="PlainTextReportOptions.NewLine"/>
         /// </summary>
         /// <returns></returns>
-        public override string ToString() => string.Join(Environment.NewLine, Lines);
+        public override string ToString() => string.Join(newLine ?? Environment.NewLine, Lines);
     }
 }

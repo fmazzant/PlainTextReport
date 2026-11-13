@@ -53,6 +53,7 @@ namespace Mafesoft.PlainTextReport
         private readonly bool[] multiLine;
         private readonly IFormatProvider[] formatProviders;
         private readonly CultureInfo culture;
+        private readonly string newLine;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -65,6 +66,7 @@ namespace Mafesoft.PlainTextReport
             this.columns = options.Columns.OrderBy(c => c.ColumnIndex).ToArray();
             this.getters = columns.Select(GetGetter).ToArray();
             this.culture = options.Culture ?? CultureInfo.InvariantCulture;
+            this.newLine = options.GetNewLine();
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
         }
@@ -120,7 +122,7 @@ namespace Mafesoft.PlainTextReport
                 lines.AddRange(title);
                 lines.AddRange(columnHeader);
                 lines.AddRange(body.SelectMany(row => row));
-                return new[] { new PlainTextReportPage(1, 1, lines.ToArray()) };
+                return new[] { new PlainTextReportPage(1, 1, lines.ToArray(), newLine) };
             }
 
             return Paginate(page, title, columnHeader, body, date);
@@ -564,7 +566,7 @@ namespace Mafesoft.PlainTextReport
                 var pageLines = margin.Length == 0
                     ? lines.ToArray()
                     : lines.Select(line => line.Length == 0 ? line : margin + line).ToArray();
-                pages[i] = new PlainTextReportPage(number, count, pageLines);
+                pages[i] = new PlainTextReportPage(number, count, pageLines, newLine);
             }
 
             return pages;
