@@ -61,6 +61,7 @@ namespace Mafesoft.PlainTextReport
         public PlainTextReportRenderer(PlainTextReportOptions<T> options)
         {
             this.options = options;
+            // OrderBy is a stable sort: the columns with the same index keep the order they were added in
             this.columns = options.Columns.OrderBy(c => c.ColumnIndex).ToArray();
             this.getters = columns.Select(GetGetter).ToArray();
             this.culture = options.Culture ?? CultureInfo.InvariantCulture;

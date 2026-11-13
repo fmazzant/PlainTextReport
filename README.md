@@ -122,6 +122,14 @@ options.Columns.AddColumn(0, "Code", m => m.Id, new CultureInfo("it-IT"));
 options.Columns.AddColumn(m => m.Enabled, style => { }, new CustomBooleanConverter());
 ```
 
+Two columns can have the same `columnIndex`: they are not an error, and they are printed in the order they were added in. The overloads without `columnIndex` use the number of columns already added as index, so mixing them with explicit indexes can give duplicates:
+
+```c#
+options.Columns.AddColumn(1, m => m.Name);     // index 1
+options.Columns.AddColumn("Code", m => m.Id);  // index 1 too (one column already added): printed after Name
+options.Columns.AddColumn(0, m => m.Price);    // index 0: printed first
+```
+
 Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an [`IValueConverter`](#custom-value-converter) instead.
 
 ### Nested properties

@@ -64,7 +64,7 @@ namespace Mafesoft.PlainTextReport
         /// Add Column
         /// </summary>
         /// <typeparam name="T">The type of the value</typeparam>
-        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order; columns with the same index keep the order they were added in</param>
         /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
         /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
         public void AddColumn<T>(int columnIndex, Expression<Func<M, T>> expression, string columnFormat = null)
@@ -104,7 +104,7 @@ namespace Mafesoft.PlainTextReport
         /// Add Column
         /// </summary>
         /// <typeparam name="T">The type of the value</typeparam>
-        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order; columns with the same index keep the order they were added in</param>
         /// <param name="columnName">The name of the column, printed in the header</param>
         /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
         /// <param name="formatProvider">The format provider of the values; it wins over the culture of the report</param>
@@ -117,7 +117,7 @@ namespace Mafesoft.PlainTextReport
         /// Add Column
         /// </summary>
         /// <typeparam name="T">The type of the value</typeparam>
-        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order; columns with the same index keep the order they were added in</param>
         /// <param name="columnName">The name of the column, printed in the header</param>
         /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
         /// <param name="converter">Converts the values to text</param>
@@ -169,7 +169,7 @@ namespace Mafesoft.PlainTextReport
         /// Add Column
         /// </summary>
         /// <typeparam name="T">The type of the value</typeparam>
-        /// <param name="columnIndex">The position of the column: the columns are printed in index order</param>
+        /// <param name="columnIndex">The position of the column: the columns are printed in index order; columns with the same index keep the order they were added in</param>
         /// <param name="columnName">The name of the column, printed in the header</param>
         /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
         /// <param name="columnFormat">The format of the values, for example N2 or dd/MM/yyyy</param>
