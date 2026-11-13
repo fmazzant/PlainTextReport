@@ -40,6 +40,23 @@ namespace Mafesoft.PlainTextReport.Tests
         }
 
         [Fact]
+        public void Columns_with_the_same_index_keep_the_order_they_were_added_in()
+        {
+            var report = new PlainTextReport<Product>(options =>
+            {
+                options.ShowHeader = true;
+                options.Columns.AddColumn(1, m => m.Name);
+                options.Columns.AddColumn("Code", m => m.Id);  // index 1, the number of columns already added
+                options.Columns.AddColumn(0, m => m.Price);
+            });
+
+            var lines = report.Bind(Products).GetTextLinesReport();
+
+            Assert.Equal("Price Name   Code", lines[0]);
+            Assert.Equal("  1.5 Apple     1", lines[1]);
+        }
+
+        [Fact]
         public void GetTextReport_joins_the_lines()
         {
             var report = CreateReport().Bind(Products);

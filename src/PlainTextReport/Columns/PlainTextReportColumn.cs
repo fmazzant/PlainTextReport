@@ -38,7 +38,9 @@ namespace Mafesoft.PlainTextReport
     public sealed class PlainTextReportColumn
     {
         /// <summary>
-        /// Column's index
+        /// Column's index: the columns are printed in index order. Two columns can have the same index:
+        /// they keep the order they were added in. The AddColumn overloads without an index use the number
+        /// of columns already added, so mixing them with explicit indexes can give duplicates.
         /// </summary>
         public int ColumnIndex { get; internal set; }
 
