@@ -279,7 +279,7 @@ Every page has exactly the height of the paper, so the footer is always at the b
 
 A plain text page is measured in characters and lines, so the paper size is converted with the printer pitch: `CharactersPerInch` (default `10`) and `LinesPerInch` (default `6`).
 
-The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. `PaperSize.Custom(name, width, height)` creates any other size in millimeters. Each paper can be used in `Portrait` or `Landscape`.
+The whole ISO 216 A series is available: `PaperSize.A0` ... `PaperSize.A10`, or `PaperSize.A(n)`. `PaperSize.Custom(name, width, height)` creates any other size in millimeters; when `name` is `null` or empty the paper is named `Custom`. Each paper can be used in `Portrait` or `Landscape`.
 
 | Paper | Size (mm) | Portrait (chars x lines) | Landscape (chars x lines) |
 |---|---|---|---|

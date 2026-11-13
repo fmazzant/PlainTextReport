@@ -97,9 +97,14 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
+        /// The name of a custom paper size created without a name
+        /// </summary>
+        public const string CustomName = "Custom";
+
+        /// <summary>
         /// Creates a custom paper size, in millimeters
         /// </summary>
-        /// <param name="name"></param>
+        /// <param name="name">The name of the paper; when null or empty it is <see cref="CustomName"/></param>
         /// <param name="widthMillimeters"></param>
         /// <param name="heightMillimeters"></param>
         /// <returns></returns>
@@ -107,7 +112,7 @@ namespace Mafesoft.PlainTextReport
         {
             if (widthMillimeters <= 0) throw new ArgumentOutOfRangeException(nameof(widthMillimeters));
             if (heightMillimeters <= 0) throw new ArgumentOutOfRangeException(nameof(heightMillimeters));
-            return new PaperSize(name, Math.Min(widthMillimeters, heightMillimeters), Math.Max(widthMillimeters, heightMillimeters));
+            return new PaperSize(string.IsNullOrEmpty(name) ? CustomName : name, Math.Min(widthMillimeters, heightMillimeters), Math.Max(widthMillimeters, heightMillimeters));
         }
 
         /// <summary>A0, 841 x 1189 mm</summary>
