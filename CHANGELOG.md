@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   memory first: the lines are written while they are composed, one page at a time, and the collection is enumerated
   once. When every column has a fixed width and `{pages}` is not used, the rows are read one at a time while they
   are written, so a report of millions of rows needs little memory. ([#20](https://github.com/fmazzant/PlainTextReport/issues/20))
+- README: Support section with a PayPal donation link.
 
 ## [1.2.0] - 2026-11-13
 
