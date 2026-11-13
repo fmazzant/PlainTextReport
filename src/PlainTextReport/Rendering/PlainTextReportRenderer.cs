@@ -59,6 +59,7 @@ namespace Mafesoft.PlainTextReport
         private readonly CultureInfo culture;
         private readonly string newLine;
         private readonly string truncationMarker;
+        private readonly TextWidth textWidth;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -73,6 +74,7 @@ namespace Mafesoft.PlainTextReport
             this.culture = options.Culture ?? CultureInfo.InvariantCulture;
             this.newLine = options.GetNewLine();
             this.truncationMarker = Clean(options.TruncationMarker ?? DefaultTruncationMarker);
+            this.textWidth = options.UnicodeWidth ? TextWidth.Unicode : TextWidth.Simple;
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
             this.nullTexts = columns.Select(c => c.Style.NullText ?? options.NullText).ToArray();
@@ -169,11 +171,11 @@ namespace Mafesoft.PlainTextReport
             foreach (var titleLine in titleLines)
             {
                 var text = Clean(titleLine);
-                if (maxWidth > 0 && text.Length > maxWidth)
+                if (maxWidth > 0)
                 {
                     text = Truncate(text, maxWidth);
                 }
-                var padding = Math.Max(0, (width - text.Length) / 2);
+                var padding = Math.Max(0, (width - textWidth.GetWidth(text)) / 2);
                 lines.Add((new string(' ', padding) + text).TrimEnd());
             }
             lines.Add(string.Empty);
@@ -226,7 +228,7 @@ namespace Mafesoft.PlainTextReport
                 var height = 1;
                 for (int i = 0; i < cells.Length; i++)
                 {
-                    cellLines[i] = multiLine[i] ? Wrap(cells[i], widths[i]) : new[] { cells[i] };
+                    cellLines[i] = multiLine[i] ? Wrap(cells[i], widths[i], textWidth) : new[] { cells[i] };
                     height = Math.Max(height, cellLines[i].Length);
                 }
 
@@ -297,29 +299,33 @@ namespace Mafesoft.PlainTextReport
         {
             if (!multiLine[column] || cell.IndexOf('\n') < 0)
             {
-                return cell.Length;
+                return textWidth.GetWidth(cell);
             }
-            return cell.Split('\n').Max(line => line.Length);
+            return cell.Split('\n').Max(line => textWidth.GetWidth(line));
         }
 
         /// <summary>
         /// Wraps a multi-line cell in lines of the given width: the line breaks start a new line,
-        /// the words are not split unless they are longer than the width.
+        /// the words are not split unless they are longer than the width, and a text element is never split.
         /// </summary>
-        internal static string[] Wrap(string text, int width)
+        internal static string[] Wrap(string text, int width, TextWidth textWidth)
         {
             var lines = new List<string>();
             foreach (var paragraph in text.Split('\n'))
             {
+                var first = lines.Count;
                 var line = paragraph.TrimEnd();
-                while (line.Length > width)
+                while (textWidth.GetWidth(line) > width)
                 {
                     // break at the last space that fits, otherwise split the word
-                    var cut = line.LastIndexOf(' ', width);
+                    var fit = textWidth.GetFitLength(line, width);
+                    var cut = line.LastIndexOf(' ', fit);
                     if (cut <= 0)
                     {
-                        lines.Add(line.Substring(0, width));
-                        line = line.Substring(width);
+                        // at least one text element, also when a wide character doesn't fit a narrow column
+                        var take = fit > 0 ? fit : textWidth.GetElementLength(line, 0);
+                        lines.Add(line.Substring(0, take));
+                        line = line.Substring(take);
                     }
                     else
                     {
@@ -328,7 +334,11 @@ namespace Mafesoft.PlainTextReport
                     }
                     line = line.TrimStart(' ');
                 }
-                lines.Add(line);
+                // a wide character split from a narrow column can leave nothing
+                if (line.Length > 0 || lines.Count == first)
+                {
+                    lines.Add(line);
+                }
             }
             return lines.ToArray();
         }
@@ -358,7 +368,7 @@ namespace Mafesoft.PlainTextReport
                     // without a report width a percentage column is automatic
                 }
 
-                var width = options.ShowHeader ? Clean(columns[i].Caption).Length : 0;
+                var width = options.ShowHeader ? textWidth.GetWidth(Clean(columns[i].Caption)) : 0;
                 foreach (var cells in rows)
                 {
                     width = Math.Max(width, GetCellWidth(cells[i], i));
@@ -452,19 +462,21 @@ namespace Mafesoft.PlainTextReport
 
         /// <summary>
         /// Cuts a text longer than the width: it ends with the truncation marker, or it is cut without
-        /// the marker when the width is smaller than the marker
+        /// the marker when the width is smaller than the marker. The text is cut between two text elements,
+        /// so the result can be one column narrower than the width when a wide character doesn't fit.
         /// </summary>
         private string Truncate(string text, int width)
         {
-            if (text.Length <= width)
+            if (textWidth.GetWidth(text) <= width)
             {
                 return text;
             }
-            if (truncationMarker.Length > width)
+            var markerWidth = textWidth.GetWidth(truncationMarker);
+            if (markerWidth > width)
             {
-                return text.Substring(0, width);
+                return text.Substring(0, textWidth.GetFitLength(text, width));
             }
-            return text.Substring(0, width - truncationMarker.Length) + truncationMarker;
+            return text.Substring(0, textWidth.GetFitLength(text, width - markerWidth)) + truncationMarker;
         }
 
         /// <summary>
@@ -472,13 +484,22 @@ namespace Mafesoft.PlainTextReport
         /// </summary>
         private void AppendCell(StringBuilder builder, string text, int width, PlainTextReportAlignment alignment)
         {
-            if (text.Length >= width)
+            var textLength = textWidth.GetWidth(text);
+            if (textLength == width)
             {
-                builder.Append(Truncate(text, width));
+                builder.Append(text);
                 return;
             }
 
-            var padding = width - text.Length;
+            if (textLength > width)
+            {
+                // a truncated text starts at the beginning of the column, padded when a wide character didn't fit
+                text = Truncate(text, width);
+                textLength = textWidth.GetWidth(text);
+                alignment = PlainTextReportAlignment.Left;
+            }
+
+            var padding = width - textLength;
             switch (alignment)
             {
                 case PlainTextReportAlignment.Right:
@@ -637,27 +658,80 @@ namespace Mafesoft.PlainTextReport
             var lines = new List<string>(height);
             for (int i = 0; i < height; i++)
             {
-                var buffer = Enumerable.Repeat(' ', width).ToArray();
+                // one cell per column: null is a space, "" the second column of a wide text element
+                var buffer = new string[width];
                 var c = Truncate(Format(i < center.Length ? center[i] : null, number, count, date, title, culture), width);
                 var l = Truncate(Format(i < left.Length ? left[i] : null, number, count, date, title, culture), width);
                 var r = Truncate(Format(i < right.Length ? right[i] : null, number, count, date, title, culture), width);
-                Put(buffer, c, (width - Math.Min(c.Length, width)) / 2);
+                Put(buffer, c, (width - textWidth.GetWidth(c)) / 2);
                 Put(buffer, l, 0);
-                Put(buffer, r, width - Math.Min(r.Length, width));
-                lines.Add(new string(buffer).TrimEnd());
+                Put(buffer, r, width - textWidth.GetWidth(r));
+
+                var builder = new StringBuilder(width);
+                foreach (var cell in buffer)
+                {
+                    builder.Append(cell ?? " ");
+                }
+                lines.Add(builder.ToString().TrimEnd());
             }
             return lines;
         }
 
         /// <summary>
-        /// Writes the text in the buffer, from start, cutting what exceeds
+        /// Writes the text in the buffer, from start, cutting what exceeds; a wide text element that is
+        /// partly overwritten becomes a space
         /// </summary>
-        private static void Put(char[] buffer, string text, int start)
+        private void Put(string[] buffer, string text, int start)
         {
-            for (int i = 0; i < text.Length && start + i < buffer.Length; i++)
+            var position = Math.Max(0, start);
+            var index = 0;
+            while (index < text.Length && position < buffer.Length)
             {
-                buffer[start + i] = text[i];
+                var length = textWidth.GetElementLength(text, index);
+                var element = text.Substring(index, length);
+                var width = textWidth.GetWidth(element);
+                index += length;
+
+                if (width == 0)
+                {
+                    // an invisible character alone (a zero width space): it takes no column
+                    continue;
+                }
+                if (position + width > buffer.Length)
+                {
+                    break;
+                }
+
+                for (int k = position; k < position + width; k++)
+                {
+                    Clear(buffer, k);
+                }
+                buffer[position] = element;
+                for (int k = position + 1; k < position + width; k++)
+                {
+                    buffer[k] = string.Empty;
+                }
+                position += width;
             }
+        }
+
+        /// <summary>
+        /// Clears a cell of the buffer; when it is part of a wide text element, the whole element is cleared
+        /// </summary>
+        private static void Clear(string[] buffer, int position)
+        {
+            // the second column of a wide element: clear its first column
+            var head = position;
+            while (head > 0 && buffer[head] != null && buffer[head].Length == 0)
+            {
+                head--;
+            }
+            buffer[head] = null;
+            for (int k = head + 1; k < buffer.Length && buffer[k] != null && buffer[k].Length == 0; k++)
+            {
+                buffer[k] = null;
+            }
+            buffer[position] = null;
         }
 
         /// <summary>

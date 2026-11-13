@@ -122,5 +122,12 @@ namespace Mafesoft.PlainTextReport
         /// the marker, the text is cut without it.
         /// </summary>
         string TruncationMarker { get; set; }
+
+        /// <summary>
+        /// Measures the text by its display width: East Asian wide characters (Chinese, Japanese, Korean) and emoji
+        /// take 2 columns, combining marks 0, and a character is never cut in half. The default is true; false counts
+        /// the UTF-16 code units (string.Length), which is faster for texts without such characters.
+        /// </summary>
+        bool UnicodeWidth { get; set; }
     }
 }

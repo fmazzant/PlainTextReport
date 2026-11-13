@@ -105,6 +105,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 | `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
 | `TruncationMarker` | `"…"` | The text at the end of a truncated value, title, header or footer. `""` truncates without a marker. See [Width and truncation](#width-and-truncation). |
+| `UnicodeWidth` | `true` | Measures the text by its display width (wide characters, emoji, combining marks). `false` uses `string.Length`. See [Wide characters and emoji](#wide-characters-and-emoji). |
 | `NullText` | `null` | The text printed for a `null` value, for example `"-"` or `"n/a"`. `null` means an empty cell. See [Null values](#null-values). |
 | `NewLine` | `null` | The line separator, for example `"\r\n"` for a printer or `"\n"` for the Linux tools. `null` means `Environment.NewLine`, so the same report differs on Windows and Linux. Used by `GetTextReport`, `WriteTo`, `WriteToAsync`, `SaveToFile`, `SavePagesToFiles` and `PlainTextReportPage.ToString()`. |
 
@@ -212,6 +213,16 @@ options.TruncationMarker = "~";    // or "..."; "" truncates without a marker
 When a column is narrower than the marker, the value is cut without it.
 
 Line breaks and tabs in the values are replaced by spaces, and trailing spaces are removed from every line.
+
+### Wide characters and emoji
+
+Widths, padding, truncation and wrapping use the display width of the text, not `string.Length`:
+
+- Chinese, Japanese and Korean characters (East Asian wide and fullwidth) and most emoji take 2 columns;
+- combining marks (`e` + U+0301) and zero-width characters take 0 columns;
+- a character is never cut in half: a surrogate pair or a letter with its accents stays whole. When a wide character doesn't fit, the cell is padded with a space.
+
+The result depends on the font of the terminal or the printer, which should be monospaced and support these characters. Set `options.UnicodeWidth = false` to count the UTF-16 code units, as before: it is faster for long reports without wide characters (the plain Latin texts are measured quickly anyway).
 
 ### Multi-line rows
 
