@@ -451,6 +451,24 @@ report.Bind(models).WriteTo(Console.Out);
 - The BOM of the encoding, if any, is written only at the beginning of a seekable stream.
 - `WriteToAsync` takes an optional `CancellationToken`.
 
+### Large reports
+
+`WriteTo`, `WriteToAsync`, `SaveToFile` and `SaveToFileAsync` write the lines while they are composed, so the whole text of the report is never in memory:
+
+- When a column has an automatic width (or a percentage width without a report width), or the header or the footer prints `{pages}`, the collection is read once and only the text of the cells is kept, to compute the widths and the number of pages.
+- When every column has a fixed width (characters, or a percentage with `options.Width` or page settings) and `{pages}` is not used, the collection is read one item at a time while the report is written: a report of millions of rows can be written from a database reader without loading it.
+
+```c#
+options.Columns.AddColumn(m => m.Id, style => style.Width = 8);
+options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");
+options.Width = 80;
+
+// the rows are read while the file is written
+report.Bind(dbContext.Products.AsNoTracking().AsEnumerable()).SaveToFile("products.txt");
+```
+
+In this case an exception thrown by the collection or by a column stops the writing, and the text written up to that point stays in the stream or in the file.
+
 ## Sample app
 
 [`samples/PlainTextReportConsole`](samples/PlainTextReportConsole/Program.cs) prints a report without pages and a paged report, with header and footer, on the console:
@@ -461,7 +479,7 @@ dotnet run --project samples/PlainTextReportConsole
 
 ## Benchmark
 
-The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows. Run it in Release mode:
+The [benchmark](benchmark/PlainTextReportBenchmark) project uses [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure the report generation on 100 to 100,000 rows, and the allocations of `WriteTo` on 1,000,000 rows with automatic and fixed widths. Run it in Release mode:
 
 ```shell
 dotnet run -c Release --project benchmark/PlainTextReportBenchmark
