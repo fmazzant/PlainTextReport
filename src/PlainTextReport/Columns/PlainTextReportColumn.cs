@@ -119,10 +119,17 @@ namespace Mafesoft.PlainTextReport
             return new DefaultFormatProvider(ColumnFormat, culture);
         }
 
+        private PlainTextReportColumnStyle _Style = new PlainTextReportColumnStyle();
+
         /// <summary>
-        /// Column's style
+        /// Column's style. It cannot be null.
         /// </summary>
-        public PlainTextReportColumnStyle Style { get; set; } = new PlainTextReportColumnStyle();
+        /// <exception cref="ArgumentNullException">The style is null</exception>
+        public PlainTextReportColumnStyle Style
+        {
+            get => _Style;
+            set => _Style = value ?? throw new ArgumentNullException(nameof(value), $"The style of column '{ColumnName}' cannot be null.");
+        }
 
         /// <summary>
         /// The text printed in the header: <see cref="PlainTextReportColumnStyle.Caption"/> when set, otherwise <see cref="ColumnName"/>

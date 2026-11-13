@@ -109,7 +109,7 @@ namespace Mafesoft.PlainTextReport
                 maxWidth = maxWidth > 0 ? Math.Min(maxWidth, page.PrintableWidth) : page.PrintableWidth;
             }
 
-            var rows = (values ?? Enumerable.Empty<T>()).Select(GetCells).ToList();
+            var rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index)).ToList();
             var widths = GetColumnWidths(rows, maxWidth);
             var separator = options.ShowColumnSeparator ? $" {options.ColumnSeparator} " : " ";
             var tableWidth = columns.Length == 0 ? 0 : widths.Sum() + separator.Length * (columns.Length - 1);
@@ -243,18 +243,42 @@ namespace Mafesoft.PlainTextReport
 
         /// <summary>
         /// Returns the cells of a row. The multi-line cells keep their line breaks, as '\n'.
+        /// A getter or a converter that throws gives a <see cref="PlainTextReportException"/> with the row and the column.
         /// </summary>
-        private string[] GetCells(T model)
+        /// <param name="model">The item</param>
+        /// <param name="index">The zero-based position of the item in the collection</param>
+        private string[] GetCells(T model, int index)
         {
             var cells = new string[columns.Length];
             for (int i = 0; i < columns.Length; i++)
             {
                 var column = columns[i];
-                var value = model == null ? null : getters[i](model);
+                object value;
+                try
+                {
+                    value = model == null ? null : getters[i](model);
+                }
+                catch (Exception ex)
+                {
+                    throw new PlainTextReportException(
+                        $"Cannot read the value of column '{column.ColumnName}' at row {index + 1}: {ex.Message}",
+                        index + 1, column.ColumnName, null, ex);
+                }
+
                 // a null value is the null text, unless a custom converter prints it; a null converted text is the null text too
-                var text = value == null && column.HasDefaultConverter
-                    ? null
-                    : column.Converter.Convert(value, null, formatProviders[i]);
+                string text;
+                try
+                {
+                    text = value == null && column.HasDefaultConverter
+                        ? null
+                        : column.Converter.Convert(value, null, formatProviders[i]);
+                }
+                catch (Exception ex)
+                {
+                    throw new PlainTextReportException(
+                        $"Cannot convert the value of column '{column.ColumnName}' at row {index + 1}: {ex.Message}",
+                        index + 1, column.ColumnName, value, ex);
+                }
                 text = text ?? nullTexts[i];
                 cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }

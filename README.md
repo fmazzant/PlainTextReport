@@ -255,6 +255,16 @@ public class CustomBooleanConverter : IValueConverter
 
 Without a custom converter a value is printed with the column's format and format provider; `byte[]` values are printed as base64.
 
+### Errors
+
+When a property getter or a converter throws, the report throws a `PlainTextReportException` that says where the bad value is, with the original exception as `InnerException`:
+
+```text
+Cannot convert the value of column 'Price' at row 1532: Input string was not in a correct format.
+```
+
+`RowNumber` is the position of the item in the bound collection, starting from 1; `ColumnName` is the name of the column and `Value` the value that could not be converted (`null` when the getter failed). The `Style` of a column cannot be set to `null`: it throws an `ArgumentNullException`.
+
 ## Pages
 
 Set `options.Page` to split the report in pages ready to print, with a header and a footer on every page:
