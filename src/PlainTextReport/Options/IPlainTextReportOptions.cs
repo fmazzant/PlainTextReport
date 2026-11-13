@@ -114,5 +114,20 @@ namespace Mafesoft.PlainTextReport
         /// A column can override it with <see cref="PlainTextReportColumnStyle.NullText"/>.
         /// </summary>
         string NullText { get; set; }
+
+        /// <summary>
+        /// Text at the end of a truncated value, of a truncated title and of a truncated header or footer text.
+        /// The default is the ellipsis "…"; "" truncates without a marker, and "..." or "~" are fine for the printer
+        /// code pages without the ellipsis (437, 850). When null the default is used. When a column is narrower than
+        /// the marker, the text is cut without it.
+        /// </summary>
+        string TruncationMarker { get; set; }
+
+        /// <summary>
+        /// Measures the text by its display width: East Asian wide characters (Chinese, Japanese, Korean) and emoji
+        /// take 2 columns, combining marks 0, and a character is never cut in half. The default is true; false counts
+        /// the UTF-16 code units (string.Length), which is faster for texts without such characters.
+        /// </summary>
+        bool UnicodeWidth { get; set; }
     }
 }

@@ -80,6 +80,12 @@ namespace Mafesoft.PlainTextReport
         /// <inheritdoc />
         public string NullText { get; set; }
 
+        /// <inheritdoc />
+        public string TruncationMarker { get; set; } = "…";
+
+        /// <inheritdoc />
+        public bool UnicodeWidth { get; set; } = true;
+
         /// <summary>
         /// Returns the line separator: <see cref="NewLine"/>, or <see cref="Environment.NewLine"/> when it is not set
         /// </summary>
