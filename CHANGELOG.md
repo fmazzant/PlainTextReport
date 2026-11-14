@@ -5,7 +5,7 @@ All notable changes to the `Mafesoft.PlainTextReport` package are documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0] - 2026-11-14
 
 ### Added
 
@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When a column has both a format and a `CultureInfo` as format provider, the format is applied in that culture;
   before, the format was ignored. ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
 - README, sample app and benchmarks use `Columns.Add`.
+- CI and CodeQL run on the `release/*` and `release-candidate/*` branches too, not only on `main`.
 
 ### Deprecated
 
@@ -113,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release.
 
+[1.3.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/fmazzant/PlainTextReport/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.0.0.1...v1.1.0
