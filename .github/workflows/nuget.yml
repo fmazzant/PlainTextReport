@@ -1,5 +1,8 @@
 name: NuGet
 
+# Publishes on NuGet from a version tag (v1.2.3) or a manual run. A tag push also creates the GitHub Release of the
+# tag, with the packages attached and the notes of the matching "## [x.y.z]" section of CHANGELOG.md.
+
 on:
   push:
     tags: [ 'v*' ]
@@ -11,7 +14,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write # needed to create the GitHub Release
   # Required by NuGet Trusted Publishing: GitHub issues the OIDC token exchanged for a temporary API key
   id-token: write
 
@@ -65,3 +68,48 @@ jobs:
 
     - name: Publish on NuGet
       run: dotnet nuget push ./*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+    # Tag push only: creates the GitHub Release of the tag with the packages attached and the notes of the matching
+    # "## [x.y.z]" section of CHANGELOG.md. Never blocks the publish: a missing or empty section only gives a warning
+    # and a release with a link to CHANGELOG.md. A release created by hand on GitHub (which also creates the tag and
+    # starts this run) is kept as it is, title and notes included: only the packages are attached, replacing those
+    # of a previous run.
+    - name: Extract the release notes from CHANGELOG.md
+      if: github.ref_type == 'tag'
+      run: |
+        # Keep a Changelog headings: "## [1.2.3] - 2026-12-01", "## [1.2.3] - Unreleased", "## 1.2.3", ...
+        RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+        HEADING="$(grep -E "^## \[?${RELEASE_VERSION//./\\.}\]?( |$)" CHANGELOG.md | head -n 1 | tr -d '\r')"
+        NOTES="$RUNNER_TEMP/release-notes.md"
+        : > "$NOTES"
+        if [ -n "$HEADING" ]; then
+          # Prints the lines between the heading and the next "## " heading.
+          awk -v heading="$HEADING" '
+            { sub(/\r$/, "") }
+            $0 == heading { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > "$NOTES"
+        fi
+        if ! grep -q '[^[:space:]]' "$NOTES"; then
+          echo "::warning::CHANGELOG.md has no notes for $RELEASE_VERSION: the release links to CHANGELOG.md"
+          echo "See [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md)." > "$NOTES"
+        fi
+
+    - name: Create the GitHub Release
+      if: github.ref_type == 'tag'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        shopt -s nullglob
+        packages=(./*.nupkg ./*.snupkg)
+        if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+          echo "The release $GITHUB_REF_NAME already exists: attaching the packages"
+          gh release upload "$GITHUB_REF_NAME" "${packages[@]}" --clobber
+        else
+          gh release create "$GITHUB_REF_NAME" "${packages[@]}" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" \
+            --verify-tag
+        fi
