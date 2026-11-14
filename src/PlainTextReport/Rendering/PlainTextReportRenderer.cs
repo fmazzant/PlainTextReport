@@ -49,6 +49,7 @@ namespace Mafesoft.PlainTextReport
         private static readonly char[] LayoutBreakers = new[] { '\r', '\n', '\t' };
         private static readonly string[] NewLines = new[] { "\r\n", "\n" };
         private static readonly Regex Placeholder = new Regex(@"\{(page|pages|title|date)(?::([^}]*))?\}", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex KeyPlaceholder = new Regex(@"\{key(?::([^}]*))?\}", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private readonly PlainTextReportOptions<T> options;
         private readonly PlainTextReportColumn[] columns;
@@ -60,6 +61,8 @@ namespace Mafesoft.PlainTextReport
         private readonly string newLine;
         private readonly string truncationMarker;
         private readonly TextWidth textWidth;
+        private readonly PlainTextReportGroup group;
+        private readonly Func<T, object> groupKey;
 
         /// <summary>
         /// Create a renderer for the given options
@@ -78,7 +81,9 @@ namespace Mafesoft.PlainTextReport
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
             this.nullTexts = columns.Select(c => c.Style.NullText ?? options.NullText).ToArray();
-            if (options.ShowTotals)
+            this.groupKey = options.GroupKey;
+            this.group = groupKey == null ? null : options.Group ?? new PlainTextReportGroup();
+            if (options.ShowTotals || (group != null && group.ShowSubtotals))
             {
                 foreach (var column in columns)
                 {
@@ -200,14 +205,67 @@ namespace Mafesoft.PlainTextReport
             public List<string> ColumnHeader;
 
             /// <summary>
-            /// The cells of every row: a list when they are needed more than once, otherwise read while the report is written
+            /// The rows, with the group headers and the subtotals: a list when they are needed more than once,
+            /// otherwise read while the report is written
             /// </summary>
-            public IEnumerable<string[]> Rows;
+            public IEnumerable<RowItem> Rows;
 
             /// <summary>
             /// The aggregates of the columns, computed while the rows are read; null without the totals row
             /// </summary>
             public ColumnTotal[] Totals;
+        }
+
+        /// <summary>
+        /// The kind of a <see cref="RowItem"/>
+        /// </summary>
+        private enum RowKind
+        {
+            Values,
+            GroupHeader,
+            Subtotals,
+        }
+
+        /// <summary>
+        /// An item of the body: a row of values, the header of a group or the subtotals row of a group
+        /// </summary>
+        private sealed class RowItem
+        {
+            public RowKind Kind;
+
+            /// <summary>
+            /// The cells of a row of values or of a subtotals row
+            /// </summary>
+            public string[] Cells;
+
+            /// <summary>
+            /// The text of a group header
+            /// </summary>
+            public string Text;
+
+            /// <summary>
+            /// True for the header of the first group
+            /// </summary>
+            public bool FirstGroup;
+        }
+
+        /// <summary>
+        /// The lines that stay together on a page: a row, a group header with the first row of its group,
+        /// a subtotals row or the totals row
+        /// </summary>
+        private sealed class Block
+        {
+            public string[] Lines;
+
+            /// <summary>
+            /// An empty line before the block, dropped at the top of a page
+            /// </summary>
+            public bool Gap;
+
+            /// <summary>
+            /// The block starts a new page
+            /// </summary>
+            public bool NewPage;
         }
 
         /// <summary>
@@ -224,10 +282,8 @@ namespace Mafesoft.PlainTextReport
                 maxWidth = maxWidth > 0 ? Math.Min(maxWidth, page.PrintableWidth) : page.PrintableWidth;
             }
 
-            var totals = options.ShowTotals && columns.Length > 0
-                ? columns.Select(column => new ColumnTotal(column.Style.Total, column.ColumnType)).ToArray()
-                : null;
-            IEnumerable<string[]> rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index, totals));
+            var totals = options.ShowTotals ? CreateTotals() : null;
+            IEnumerable<RowItem> rows = GetRowItems(values ?? Enumerable.Empty<T>(), totals, maxWidth);
             if (columns.Any(column => NeedsValues(column, maxWidth)) || (page != null && UsesPageCount(page)))
             {
                 rows = rows.ToList();
@@ -277,10 +333,103 @@ namespace Mafesoft.PlainTextReport
         {
             foreach (var line in layout.Title) yield return line;
             foreach (var line in layout.ColumnHeader) yield return line;
-            foreach (var row in GetRowLines(layout))
+            foreach (var block in GetBlocks(layout, false))
             {
-                foreach (var line in row) yield return line;
+                if (block.Gap) yield return string.Empty;
+                foreach (var line in block.Lines) yield return line;
             }
+        }
+
+        /// <summary>
+        /// Returns the aggregates of the columns, empty; null without columns
+        /// </summary>
+        private ColumnTotal[] CreateTotals()
+        {
+            return columns.Length > 0
+                ? columns.Select(column => new ColumnTotal(column.Style.Total, column.ColumnType)).ToArray()
+                : null;
+        }
+
+        /// <summary>
+        /// Returns the items of the body while the values are read: the rows and, when the report is grouped,
+        /// the header of every group and its subtotals row. A group starts every time the key changes.
+        /// </summary>
+        /// <param name="values">The items</param>
+        /// <param name="totals">The aggregates of the totals row; null without the totals row</param>
+        /// <param name="maxWidth">The report width, 0 for no limit: a longer group header is truncated</param>
+        private IEnumerable<RowItem> GetRowItems(IEnumerable<T> values, ColumnTotal[] totals, int maxWidth)
+        {
+            var index = 0;
+            if (group == null)
+            {
+                foreach (var model in values)
+                {
+                    yield return new RowItem { Kind = RowKind.Values, Cells = GetCells(model, index++, totals, null) };
+                }
+                yield break;
+            }
+
+            ColumnTotal[] subtotals = null;
+            object key = null;
+            var first = true;
+            foreach (var model in values)
+            {
+                var next = GetGroupKey(model, index);
+                if (first || !Equals(key, next))
+                {
+                    if (subtotals != null)
+                    {
+                        yield return new RowItem { Kind = RowKind.Subtotals, Cells = GetTotalsCells(subtotals, null) };
+                    }
+                    yield return new RowItem { Kind = RowKind.GroupHeader, Text = GetGroupHeader(next, maxWidth), FirstGroup = first };
+                    subtotals = group.ShowSubtotals ? CreateTotals() : null;
+                    key = next;
+                    first = false;
+                }
+                yield return new RowItem { Kind = RowKind.Values, Cells = GetCells(model, index++, totals, subtotals) };
+            }
+            if (subtotals != null)
+            {
+                yield return new RowItem { Kind = RowKind.Subtotals, Cells = GetTotalsCells(subtotals, null) };
+            }
+        }
+
+        /// <summary>
+        /// Returns the key of the group of an item; a key selector that throws gives a <see cref="PlainTextReportException"/> with the row
+        /// </summary>
+        private object GetGroupKey(T model, int index)
+        {
+            try
+            {
+                return model == null ? null : groupKey(model);
+            }
+            catch (Exception ex)
+            {
+                throw new PlainTextReportException(
+                    $"Cannot read the group key at row {index + 1}: {ex.Message}",
+                    index + 1, null, null, ex);
+            }
+        }
+
+        /// <summary>
+        /// Returns the header of a group: <see cref="PlainTextReportGroup.Header"/> with the key in place of {key} or {key:format},
+        /// on one line and truncated to the report width
+        /// </summary>
+        private string GetGroupHeader(object key, int maxWidth)
+        {
+            var text = KeyPlaceholder.Replace(group.Header ?? "{key}", match =>
+            {
+                if (key == null)
+                {
+                    return options.NullText ?? string.Empty;
+                }
+                var format = match.Groups[1].Success ? match.Groups[1].Value : null;
+                return key is IFormattable formattable
+                    ? formattable.ToString(format, culture)
+                    : Convert.ToString(key, culture) ?? string.Empty;
+            });
+            text = Clean(text);
+            return maxWidth > 0 ? Truncate(text, maxWidth) : text;
         }
 
         /// <summary>
@@ -379,10 +528,13 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the lines of every row, while the rows are read: one line, or more when a multi-line value wraps.
-        /// The totals row, with its separator, is the last block, after the values have been read.
+        /// Returns the blocks of the body, while the rows are read: every row is one line, or more when a multi-line
+        /// value wraps; a group header is in the same block of the first row of its group, so it is never left alone
+        /// at the bottom of a page. The totals row, with its separator, is the last block, after the values have been read.
         /// </summary>
-        private IEnumerable<string[]> GetRowLines(Layout layout)
+        /// <param name="layout">The layout</param>
+        /// <param name="measure">True to count the lines without composing them: the lines are null</param>
+        private IEnumerable<Block> GetBlocks(Layout layout, bool measure)
         {
             if (columns.Length == 0)
             {
@@ -392,32 +544,70 @@ namespace Mafesoft.PlainTextReport
             var widths = layout.Widths;
             var separator = layout.Separator;
             var alignments = columns.Select(GetAlignment).ToArray();
-            foreach (var lines in GetRowLines(layout.Rows, widths, separator, alignments))
+            var builder = new StringBuilder();
+            var cellLines = new string[columns.Length][];
+            RowItem header = null;
+            foreach (var item in layout.Rows)
             {
-                yield return lines;
+                string[] lines;
+                switch (item.Kind)
+                {
+                    case RowKind.GroupHeader:
+                        header = item;
+                        continue;
+                    case RowKind.Subtotals:
+                        lines = measure ? new string[1] : new[] { GetLine(builder, item.Cells, widths, separator, alignments) };
+                        break;
+                    default:
+                        lines = measure
+                            ? new string[GetRowHeight(item.Cells, widths)]
+                            : GetRowLines(builder, cellLines, item.Cells, widths, separator, alignments);
+                        break;
+                }
+
+                if (header == null)
+                {
+                    yield return new Block { Lines = lines };
+                    continue;
+                }
+
+                var withHeader = new string[lines.Length + 1];
+                withHeader[0] = header.Text;
+                Array.Copy(lines, 0, withHeader, 1, lines.Length);
+                yield return new Block { Lines = withHeader, Gap = !header.FirstGroup, NewPage = !header.FirstGroup && group.NewPage };
+                header = null;
             }
 
             if (layout.Totals != null)
             {
-                yield return GetTotalsLines(layout.Totals, widths, separator, alignments);
+                yield return new Block
+                {
+                    Lines = measure ? new string[GetTotalsHeight()] : GetTotalsLines(builder, layout.Totals, widths, separator, alignments),
+                };
             }
         }
 
         /// <summary>
         /// Returns the totals row, preceded by the separator line when <see cref="PlainTextReportOptions.ShowHeaderSeparator"/> is true
         /// </summary>
-        private string[] GetTotalsLines(ColumnTotal[] totals, int[] widths, string separator, PlainTextReportAlignment[] alignments)
+        private string[] GetTotalsLines(StringBuilder builder, ColumnTotal[] totals, int[] widths, string separator, PlainTextReportAlignment[] alignments)
         {
-            var cells = GetTotalsCells(totals);
-            var builder = new StringBuilder();
+            var row = GetLine(builder, GetTotalsCells(totals, options.TotalsCaption), widths, separator, alignments);
+            return options.ShowHeaderSeparator ? new[] { GetSeparatorLine(widths), row } : new[] { row };
+        }
+
+        /// <summary>
+        /// Returns the line of cells that are on one line, like the totals and the subtotals
+        /// </summary>
+        private string GetLine(StringBuilder builder, string[] cells, int[] widths, string separator, PlainTextReportAlignment[] alignments)
+        {
+            builder.Clear();
             for (int i = 0; i < cells.Length; i++)
             {
                 if (i > 0) builder.Append(separator);
                 AppendCell(builder, cells[i], widths[i], alignments[i]);
             }
-
-            var row = builder.ToString().TrimEnd();
-            return options.ShowHeaderSeparator ? new[] { GetSeparatorLine(widths), row } : new[] { row };
+            return builder.ToString().TrimEnd();
         }
 
         /// <summary>
@@ -429,10 +619,12 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the cells of the totals row: the aggregates, formatted with the format of the column in the culture
-        /// of the report, and the caption in the first column without an aggregate
+        /// Returns the cells of the totals or of the subtotals row: the aggregates, formatted with the format of the column
+        /// in the culture of the report, and the caption in the first column without an aggregate
         /// </summary>
-        private string[] GetTotalsCells(ColumnTotal[] totals)
+        /// <param name="totals">The aggregates</param>
+        /// <param name="caption">The caption; null for none</param>
+        private string[] GetTotalsCells(ColumnTotal[] totals, string caption)
         {
             var cells = new string[columns.Length];
             var captionPrinted = false;
@@ -443,7 +635,7 @@ namespace Mafesoft.PlainTextReport
                 switch (total.Kind)
                 {
                     case PlainTextReportTotal.None:
-                        text = captionPrinted ? null : options.TotalsCaption;
+                        text = captionPrinted ? null : caption;
                         captionPrinted = true;
                         break;
                     case PlainTextReportTotal.Count:
@@ -489,34 +681,29 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the lines of the rows, while the rows are read
+        /// Returns the lines of a row: one line, or more when a multi-line value wraps
         /// </summary>
-        private IEnumerable<string[]> GetRowLines(IEnumerable<string[]> rows, int[] widths, string separator, PlainTextReportAlignment[] alignments)
+        private string[] GetRowLines(StringBuilder builder, string[][] cellLines, string[] cells, int[] widths, string separator, PlainTextReportAlignment[] alignments)
         {
-            var builder = new StringBuilder();
-            var cellLines = new string[columns.Length][];
-            foreach (var cells in rows)
+            var height = 1;
+            for (int i = 0; i < cells.Length; i++)
             {
-                var height = 1;
+                cellLines[i] = multiLine[i] ? Wrap(cells[i], widths[i], textWidth) : new[] { cells[i] };
+                height = Math.Max(height, cellLines[i].Length);
+            }
+
+            var lines = new string[height];
+            for (int k = 0; k < height; k++)
+            {
+                builder.Clear();
                 for (int i = 0; i < cells.Length; i++)
                 {
-                    cellLines[i] = multiLine[i] ? Wrap(cells[i], widths[i], textWidth) : new[] { cells[i] };
-                    height = Math.Max(height, cellLines[i].Length);
+                    if (i > 0) builder.Append(separator);
+                    AppendCell(builder, k < cellLines[i].Length ? cellLines[i][k] : string.Empty, widths[i], alignments[i]);
                 }
-
-                var lines = new string[height];
-                for (int k = 0; k < height; k++)
-                {
-                    builder.Clear();
-                    for (int i = 0; i < cells.Length; i++)
-                    {
-                        if (i > 0) builder.Append(separator);
-                        AppendCell(builder, k < cellLines[i].Length ? cellLines[i][k] : string.Empty, widths[i], alignments[i]);
-                    }
-                    lines[k] = builder.ToString().TrimEnd();
-                }
-                yield return lines;
+                lines[k] = builder.ToString().TrimEnd();
             }
+            return lines;
         }
 
         /// <summary>
@@ -542,7 +729,8 @@ namespace Mafesoft.PlainTextReport
         /// <param name="model">The item</param>
         /// <param name="index">The zero-based position of the item in the collection</param>
         /// <param name="totals">The aggregates of the columns, which receive the values; null without the totals row</param>
-        private string[] GetCells(T model, int index, ColumnTotal[] totals)
+        /// <param name="subtotals">The aggregates of the group, which receive the values; null without the subtotals</param>
+        private string[] GetCells(T model, int index, ColumnTotal[] totals, ColumnTotal[] subtotals)
         {
             var cells = new string[columns.Length];
             for (int i = 0; i < columns.Length; i++)
@@ -560,19 +748,8 @@ namespace Mafesoft.PlainTextReport
                         index + 1, column.ColumnName, null, ex);
                 }
 
-                if (totals != null)
-                {
-                    try
-                    {
-                        totals[i].Add(value);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new PlainTextReportException(
-                            $"Cannot add the value of column '{column.ColumnName}' at row {index + 1} to the total {totals[i].Kind}: {ex.Message}",
-                            index + 1, column.ColumnName, value, ex);
-                    }
-                }
+                AddTotal(totals, i, value, index);
+                AddTotal(subtotals, i, value, index);
 
                 // a null value is the null text, unless a custom converter prints it; a null converted text is the null text too
                 string text;
@@ -592,6 +769,33 @@ namespace Mafesoft.PlainTextReport
                 cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }
             return cells;
+        }
+
+        /// <summary>
+        /// Adds a value to the aggregate of a column; a value that cannot be added gives a <see cref="PlainTextReportException"/>
+        /// with the row and the column
+        /// </summary>
+        /// <param name="totals">The aggregates; null for none</param>
+        /// <param name="i">The column</param>
+        /// <param name="value">The value</param>
+        /// <param name="index">The zero-based position of the item in the collection</param>
+        private void AddTotal(ColumnTotal[] totals, int i, object value, int index)
+        {
+            if (totals == null)
+            {
+                return;
+            }
+            try
+            {
+                totals[i].Add(value);
+            }
+            catch (Exception ex)
+            {
+                var column = columns[i];
+                throw new PlainTextReportException(
+                    $"Cannot add the value of column '{column.ColumnName}' at row {index + 1} to the total {totals[i].Kind}: {ex.Message}",
+                    index + 1, column.ColumnName, value, ex);
+            }
         }
 
         /// <summary>
@@ -665,10 +869,10 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Returns the width of every column, fitted in the maximum width
         /// </summary>
-        /// <param name="rows">The cells of the rows; they are read only for the columns that fit their values</param>
+        /// <param name="rows">The rows and the subtotals; they are read only for the columns that fit their values</param>
         /// <param name="maxWidth">The report width, 0 for no limit</param>
         /// <param name="totals">The aggregates of the columns, complete once the rows are read; null without the totals row</param>
-        private int[] GetColumnWidths(IEnumerable<string[]> rows, int maxWidth, ColumnTotal[] totals)
+        private int[] GetColumnWidths(IEnumerable<RowItem> rows, int maxWidth, ColumnTotal[] totals)
         {
             var widths = new int[columns.Length];
             var percents = new double[columns.Length];
@@ -692,14 +896,15 @@ namespace Mafesoft.PlainTextReport
                 }
 
                 var width = options.ShowHeader ? GetCaptionWidth(columns[i]) : 0;
-                foreach (var cells in rows)
+                foreach (var item in rows)
                 {
-                    width = Math.Max(width, GetCellWidth(cells[i], i));
+                    // the group headers are lines of their own, out of the columns
+                    if (item.Cells != null) width = Math.Max(width, GetCellWidth(item.Cells[i], i));
                 }
                 if (totals != null)
                 {
                     // an automatic column reads every row first, so the aggregates are complete
-                    totalsCells = totalsCells ?? GetTotalsCells(totals);
+                    totalsCells = totalsCells ?? GetTotalsCells(totals, options.TotalsCaption);
                     width = Math.Max(width, textWidth.GetWidth(totalsCells[i]));
                 }
                 widths[i] = Math.Max(1, width);
@@ -887,15 +1092,10 @@ namespace Mafesoft.PlainTextReport
             var count = 0;
             if (UsesPageCount(page))
             {
-                var heights = layout.Rows.Select(cells => new string[GetRowHeight(cells, layout.Widths)]);
-                if (layout.Totals != null)
-                {
-                    heights = heights.Concat(new[] { new string[GetTotalsHeight()] });
-                }
-                count = SplitBodies(page, capacity, layout.Title, layout.ColumnHeader, columns.Length == 0 ? Enumerable.Empty<string[]>() : heights).Count();
+                count = SplitBodies(page, capacity, layout.Title, layout.ColumnHeader, GetBlocks(layout, true)).Count();
             }
 
-            var rows = GetRowLines(layout);
+            var rows = GetBlocks(layout, false);
             var titleText = options.IsMultiLineTitle ? string.Join(" ", options.MultiLineTitle) : options.Title ?? string.Empty;
             var margin = new string(' ', page.MarginLeft);
             var number = 0;
@@ -931,16 +1131,17 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Splits the body in pages, while the rows are read; the lines of a multi-line row stay on the same page,
-        /// unless the row is longer than a whole page. There is always at least one page.
+        /// Splits the body in pages, while the rows are read; the lines of a block (a multi-line row, a group header
+        /// with the first row of its group) stay on the same page, unless the block is longer than a whole page.
+        /// The empty line before a group is dropped at the top of a page. There is always at least one page.
         /// </summary>
-        /// <param name="rows">The lines of every row; only their number is used when the pages are just counted</param>
-        private static IEnumerable<List<string>> SplitBodies(PlainTextReportPageSettings page, int capacity, List<string> title, List<string> columnHeader, IEnumerable<string[]> rows)
+        /// <param name="blocks">The lines of every block; only their number is used when the pages are just counted</param>
+        private static IEnumerable<List<string>> SplitBodies(PlainTextReportPageSettings page, int capacity, List<string> title, List<string> columnHeader, IEnumerable<Block> blocks)
         {
             var nextPageCapacity = capacity - (page.RepeatColumnHeader ? columnHeader.Count : 0);
-            using (var enumerator = rows.GetEnumerator())
+            using (var enumerator = blocks.GetEnumerator())
             {
-                var row = enumerator.MoveNext() ? enumerator.Current : null;
+                var block = enumerator.MoveNext() ? enumerator.Current : null;
                 var rowLine = 0;
                 var first = true;
                 do
@@ -950,29 +1151,43 @@ namespace Mafesoft.PlainTextReport
                     if (first || page.RepeatColumnHeader) lines.AddRange(columnHeader);
 
                     var start = lines.Count;
-                    if (start > capacity || (!first && start == capacity && row != null))
+                    if (start > capacity || (!first && start == capacity && block != null))
                     {
                         throw new InvalidOperationException($"The page {page.PaperSize} is too small for the title and the column header.");
                     }
 
-                    while (row != null && lines.Count < capacity)
+                    while (block != null && lines.Count < capacity)
                     {
-                        var left = row.Length - rowLine;
+                        var row = block.Lines;
                         var free = capacity - lines.Count;
-                        if (left > free && lines.Count > start && rowLine == 0 && row.Length <= nextPageCapacity)
+                        if (rowLine == 0 && lines.Count > start)
                         {
-                            // the row fits on the next page
-                            break;
+                            if (block.NewPage)
+                            {
+                                break;
+                            }
+
+                            var gap = block.Gap ? 1 : 0;
+                            if (row.Length + gap > free && row.Length <= nextPageCapacity)
+                            {
+                                // the block fits on the next page
+                                break;
+                            }
+                            if (gap > 0)
+                            {
+                                lines.Add(string.Empty);
+                                free--;
+                            }
                         }
 
-                        var take = Math.Min(left, free);
+                        var take = Math.Min(row.Length - rowLine, free);
                         for (int k = 0; k < take; k++)
                         {
                             lines.Add(row[rowLine++]);
                         }
                         if (rowLine == row.Length)
                         {
-                            row = enumerator.MoveNext() ? enumerator.Current : null;
+                            block = enumerator.MoveNext() ? enumerator.Current : null;
                             rowLine = 0;
                         }
                     }
@@ -980,7 +1195,7 @@ namespace Mafesoft.PlainTextReport
                     first = false;
                     yield return lines;
                 }
-                while (row != null);
+                while (block != null);
             }
         }
 

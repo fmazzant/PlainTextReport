@@ -53,6 +53,10 @@ namespace Mafesoft.PlainTextReport.Tests
             { "multiline", false },
             { "multiline-pages", true },
             { "multiline-pages", false },
+            { "groups", true },
+            { "groups", false },
+            { "groups-pages", true },
+            { "groups-pages", false },
         };
 
         private static void Configure(PlainTextReportOptions<Item> options, string configuration)
@@ -82,6 +86,25 @@ namespace Mafesoft.PlainTextReport.Tests
                     options.Page.Header.Right = "Page {page} of {pages}";
                     options.MultiLineRows = true;
                     options.Width = 14;
+                    break;
+                case "groups":
+                    options.ShowTotals = true;
+                    options.GroupBy(m => m.Id / 7, group =>
+                    {
+                        group.Header = "Group {key}";
+                        group.ShowSubtotals = true;
+                    });
+                    break;
+                case "groups-pages":
+                    options.Page = SmallPage();
+                    options.Page.Footer.Right = "{page}/{pages}";
+                    options.ShowTotals = true;
+                    options.GroupBy(m => m.Id / 7, group =>
+                    {
+                        group.Header = "Group {key}";
+                        group.ShowSubtotals = true;
+                        group.NewPage = true;
+                    });
                     break;
             }
         }
@@ -142,6 +165,7 @@ namespace Mafesoft.PlainTextReport.Tests
         [Theory]
         [InlineData("none")]
         [InlineData("page")]
+        [InlineData("groups")]
         public void WriteTo_with_fixed_widths_reads_the_values_while_writing(string configuration)
         {
             var report = CreateReport(options => Configure(options, configuration), fixedWidths: true);

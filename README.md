@@ -114,6 +114,8 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `ShowTotals` | `false` | Prints a totals row at the end of the report, with the aggregate of every column. See [Totals](#totals). |
 | `TotalsCaption` | `"Total"` | The text of the totals row, in the first column without an aggregate. |
 
+The rows can be grouped by a key with `options.GroupBy(...)`, with a header and optional subtotals for every group. See [Groups](#groups).
+
 ## Columns
 
 A column is defined by a property or a field of the model. `Columns.Add` takes the property and, optionally, a builder with every setting of the column in one place:
@@ -249,6 +251,47 @@ Total  | 13.75
 - The separator line above the totals row is printed when `ShowHeaderSeparator` is true. When every column has an aggregate, the caption is not printed.
 - An automatic column is wide enough for its aggregate and for the caption. With pages, the totals row is printed at the end of the last page, together with its separator. It works with the [large reports](#large-reports) too: the aggregates are computed while the rows are read.
 
+### Groups
+
+`options.GroupBy(key, group => ...)` groups the rows by a key: every group starts with a header line and, with `ShowSubtotals`, ends with a subtotals row.
+
+```c#
+options.ShowTotals = true;
+options.GroupBy(m => m.Category, group =>
+{
+    group.Header = "Category: {key}";
+    group.ShowSubtotals = true;   // uses the column aggregates of the totals row
+    group.NewPage = false;        // start every group on a new page
+});
+options.Columns.Add(m => m.Name);
+options.Columns.Add(m => m.Price, column => column.Format("N2").Total(PlainTextReportTotal.Sum));
+```
+
+```text
+Category: Fruit
+Apple  |  1.50
+Banana | 12.25
+       | 13.75
+
+Category: Vegetables
+Carrot |  0.80
+       |  0.80
+-------+------
+Total  | 14.55
+```
+
+| Setting | Default | Description |
+|---|---|---|
+| `Header` | `"{key}"` | The line printed above every group. `{key}` is replaced by the key, and `{key:format}` formats it in the culture of the report (`"{key:MMMM yyyy}"` for a date). A `null` key is printed as the [null text](#null-values). |
+| `ShowSubtotals` | `false` | Prints a subtotals row at the end of every group, with the [aggregate](#totals) of every column computed on the rows of the group. It works with or without `ShowTotals`. |
+| `NewPage` | `false` | With [pages](#pages), every group after the first starts on a new page. |
+
+- **Order:** a new group starts every time the key changes, so the groups follow the order of the collection. The report never sorts the data: sort it by the key first (`products.OrderBy(m => m.Category)`), otherwise the same key can make more groups.
+- The groups are separated by an empty line. The column header is printed once at the top (and on every page with `RepeatColumnHeader`), the totals row at the end.
+- The subtotals row has no caption and no separator line; an automatic column is wide enough for its subtotals. A header longer than the report width is truncated.
+- **Pages:** a group header is never left alone at the bottom of a page: it moves to the next page together with the first row of its group, and the empty line before a group is not printed at the top of a page.
+- There is one level of groups: a new call to `GroupBy` replaces the previous one. It works with the [large reports](#large-reports) too: the groups are read while the report is written.
+
 ### Column width in characters or percentage
 
 `Width` is a `ColumnWidth`: it can be set with an `int` (characters) or with a string (`"20"` characters, `"50%"` percentage). `ColumnWidth.Characters(20)` and `ColumnWidth.Percent(50)` do the same.
@@ -373,7 +416,7 @@ When a property getter or a converter throws, the report throws a `PlainTextRepo
 Cannot convert the value of column 'Price' at row 1532: Input string was not in a correct format.
 ```
 
-`RowNumber` is the position of the item in the bound collection, starting from 1; `ColumnName` is the name of the column and `Value` the value that could not be converted (`null` when the getter failed). The `Style` of a column cannot be set to `null`: it throws an `ArgumentNullException`.
+`RowNumber` is the position of the item in the bound collection, starting from 1; `ColumnName` is the name of the column and `Value` the value that could not be converted (`null` when the getter failed). A [group key](#groups) that throws gives a `PlainTextReportException` with the row and a `null` `ColumnName`. The `Style` of a column cannot be set to `null`: it throws an `ArgumentNullException`.
 
 ## Pages
 
