@@ -129,5 +129,18 @@ namespace Mafesoft.PlainTextReport
         /// the UTF-16 code units (string.Length), which is faster for texts without such characters.
         /// </summary>
         bool UnicodeWidth { get; set; }
+
+        /// <summary>
+        /// Prints a totals row at the end of the report, with the aggregate of every column
+        /// (<see cref="PlainTextReportColumnStyle.Total"/>). With pages it is printed at the end of the last page.
+        /// It is preceded by a separator line when <see cref="ShowHeaderSeparator"/> is true.
+        /// </summary>
+        bool ShowTotals { get; set; }
+
+        /// <summary>
+        /// The text printed in the totals row, in the first column without an aggregate; "Total" by default.
+        /// When every column has an aggregate it is not printed.
+        /// </summary>
+        string TotalsCaption { get; set; }
     }
 }

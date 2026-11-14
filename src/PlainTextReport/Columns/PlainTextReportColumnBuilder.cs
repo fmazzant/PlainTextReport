@@ -179,9 +179,21 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
+        /// The aggregate printed in the totals row when <see cref="PlainTextReportOptions.ShowTotals"/> is true:
+        /// sum, count, average, minimum or maximum. Sum and average need a numeric column.
+        /// </summary>
+        /// <param name="total">The aggregate; <see cref="PlainTextReportTotal.None"/> for no aggregate</param>
+        /// <returns>The builder</returns>
+        public PlainTextReportColumnBuilder Total(PlainTextReportTotal total)
+        {
+            column.Style.Total = total;
+            return this;
+        }
+
+        /// <summary>
         /// Sets the style of the column directly, like the style lambda of the AddColumn overloads
         /// </summary>
-        /// <param name="style">Sets the style: caption, width, alignment, multi-line, null text</param>
+        /// <param name="style">Sets the style: caption, width, alignment, multi-line, null text, total</param>
         /// <returns>The builder</returns>
         /// <exception cref="ArgumentNullException">The action is null</exception>
         public PlainTextReportColumnBuilder Style(Action<PlainTextReportColumnStyle> style)

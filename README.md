@@ -110,6 +110,8 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `UnicodeWidth` | `true` | Measures the text by its display width (wide characters, emoji, combining marks). `false` uses `string.Length`. See [Wide characters and emoji](#wide-characters-and-emoji). |
 | `NullText` | `null` | The text printed for a `null` value, for example `"-"` or `"n/a"`. `null` means an empty cell. See [Null values](#null-values). |
 | `NewLine` | `null` | The line separator, for example `"\r\n"` for a printer or `"\n"` for the Linux tools. `null` means `Environment.NewLine`, so the same report differs on Windows and Linux. Used by `GetTextReport`, `WriteTo`, `WriteToAsync`, `SaveToFile`, `SavePagesToFiles` and `PlainTextReportPage.ToString()`. |
+| `ShowTotals` | `false` | Prints a totals row at the end of the report, with the aggregate of every column. See [Totals](#totals). |
+| `TotalsCaption` | `"Total"` | The text of the totals row, in the first column without an aggregate. |
 
 ## Columns
 
@@ -138,6 +140,7 @@ options.Columns.Add(m => m.Price, column => column
 | `Align(alignment)`, `HeaderAlign(alignment)` | Alignment of the values and of the header. |
 | `MultiLine(bool)` | Wraps the values on more lines. See [Multi-line rows](#multi-line-rows). |
 | `NullText(text)` | The text printed for a `null` value. See [Null values](#null-values). |
+| `Total(total)` | The aggregate of the totals row: `Sum`, `Count`, `Average`, `Min` or `Max`. See [Totals](#totals). |
 | `Style(style => ...)` | Sets the `PlainTextReportColumnStyle` directly. |
 
 Every combination works, for example a format with a converter, and when a setting is set twice the last one wins.
@@ -168,7 +171,7 @@ options.Columns.Add(m => m.Customer.Address.City);
 
 ### Column style
 
-The style is set by the builder methods of the same name (`Caption`, `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`) or directly with `Style(style => ...)`.
+The style is set by the builder methods of the same name (`Caption`, `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`, `Total`) or directly with `Style(style => ...)`.
 
 | Property | Default | Description |
 |---|---|---|
@@ -178,6 +181,7 @@ The style is set by the builder methods of the same name (`Caption`, `Width`, `A
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
 | `MultiLine` | `null` | `true` wraps the values of the column on more lines, `false` keeps them on one line. When `null` it is the same as `options.MultiLineRows`. |
 | `NullText` | `null` | The text printed for a `null` value of the column. When `null` it is the same as `options.NullText`. See [Null values](#null-values). |
+| `Total` | `None` | The aggregate printed in the totals row. See [Totals](#totals). |
 
 ```c#
 options.Columns.Add(m => m.Price, column => column
@@ -201,6 +205,37 @@ options.Columns.Add(m => m.Name, column => column.NullText("n/a"));  // single c
 - It is also used when an intermediate value of a nested property is `null` (`m => m.Customer.Name` with `Customer == null`).
 - A custom converter still receives the `null` values, so it can print them its own way; when a converter returns `null`, `NullText` is used.
 - `NullText("")` keeps the cells of a column empty even when the report has a `NullText`.
+
+### Totals
+
+With `options.ShowTotals = true` the report ends with a totals row: every column prints its aggregate, and the first column without an aggregate prints `options.TotalsCaption` (`"Total"`).
+
+```c#
+options.ShowTotals = true;
+options.Columns.Add(m => m.Name);
+options.Columns.Add(m => m.Price, column => column.Format("N2").Total(PlainTextReportTotal.Sum));
+```
+
+```text
+Name   | Price
+-------+------
+Apple  |  1.50
+Banana | 12.25
+-------+------
+Total  | 13.75
+```
+
+| Total | Columns | Result |
+|---|---|---|
+| `Sum` | numeric | The sum of the values; `0` without values. |
+| `Count` | all | The number of values that are not `null`. |
+| `Average` | numeric | The average of the values that are not `null`, as a `decimal` (a `double` for `float` and `double` columns), so an integer column can show decimals; the [null text](#null-values) without values. |
+| `Min`, `Max` | numbers, dates, texts, every `IComparable` | The smallest or the largest value, printed like the values of the column (with its converter); the null text without values. |
+
+- The aggregates use the values before they are converted to text, and `null` values are skipped. The sum and the average are formatted with the format of the column in the culture of the report.
+- `Sum` or `Average` on a column that is not numeric throws an `InvalidOperationException`; a sum too large for a `decimal` throws a `PlainTextReportException` with the row and the column.
+- The separator line above the totals row is printed when `ShowHeaderSeparator` is true. When every column has an aggregate, the caption is not printed.
+- An automatic column is wide enough for its aggregate and for the caption. With pages, the totals row is printed at the end of the last page, together with its separator. It works with the [large reports](#large-reports) too: the aggregates are computed while the rows are read.
 
 ### Column width in characters or percentage
 
