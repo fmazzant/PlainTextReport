@@ -104,6 +104,7 @@ Id | Name                 | Price | CreatedOn  | Enabled
 | `HeaderSeparator` | `'-'` | The character used to draw the line below the header. |
 | `Width` | `0` | The maximum width of the report, in characters. `0` means no limit. |
 | `MultiLineRows` | `false` | Wraps the values longer than their column on more lines, instead of truncating them. See [Multi-line rows](#multi-line-rows). |
+| `MultiLineHeader` | `false` | Wraps the captions longer than their column on more lines; a line break in a caption starts a new line. See [Multi-line header](#multi-line-header). |
 | `Culture` | `null` | The culture of the numbers, the dates, the column formats and the `{date}` placeholder. `null` means the invariant culture. See [Culture](#culture). |
 | `Page` | `null` | The page settings. `null` means a report without pages. See [Pages](#pages). |
 | `TruncationMarker` | `"…"` | The text at the end of a truncated value, title, header or footer. `""` truncates without a marker. See [Width and truncation](#width-and-truncation). |
@@ -310,6 +311,28 @@ Id | Name             | Price
 ```
 
 With pages, the lines of a row are kept on the same page; only a row taller than a whole page continues on the next one.
+
+### Multi-line header
+
+With `options.MultiLineHeader = true` a caption longer than its column is not truncated: it wraps on more lines, like the [multi-line rows](#multi-line-rows), and a line break in the caption starts a new line.
+
+```c#
+options.MultiLineHeader = true;
+options.Columns.Add(m => m.Id);
+options.Columns.Add(m => m.CreatedOn, column => column.Caption("Created\non").Width(10).Format("dd/MM/yyyy"));
+options.Columns.Add(m => m.Price, column => column.Format("N2"));
+```
+
+```text
+Id | Created    | Price
+   | on         |
+---+------------+------
+ 1 | 02/01/2024 |  1.50
+```
+
+- The automatic columns are sized on the longest word of the caption, not on the whole caption: `"Unit price"` needs 5 characters, not 10.
+- Every line of the header uses the header alignment of its column.
+- With pages, the header height is counted when the rows are split in pages, also with `RepeatColumnHeader`.
 
 ### Culture
 

@@ -23,11 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a property. The column needs a name; a `NullReferenceException` inside the expression gives an empty cell (or the
   null text), and the alignment and the totals row use the result type of the expression. The obsolete `AddColumn`
   overloads with a column name accept a computed value too. ([#17](https://github.com/fmazzant/PlainTextReport/issues/17))
+- `options.MultiLineHeader`: a caption longer than its column wraps on more lines, and a line break in a caption
+  (`"Created\non"`) starts a new line. The automatic columns are sized on the longest word of the caption, and with
+  pages the header height is counted, also with `RepeatColumnHeader`. ([#4](https://github.com/fmazzant/PlainTextReport/issues/4))
 
 ### Changed
 
-- `IPlainTextReportOptions` has the new `ShowTotals` and `TotalsCaption` properties: a custom implementation of the
-  interface must add them. ([#2](https://github.com/fmazzant/PlainTextReport/issues/2))
+- `IPlainTextReportOptions` has the new `ShowTotals`, `TotalsCaption` and `MultiLineHeader` properties: a custom
+  implementation of the interface must add them. ([#2](https://github.com/fmazzant/PlainTextReport/issues/2),
+  [#4](https://github.com/fmazzant/PlainTextReport/issues/4))
 - When a column has both a format and a `CultureInfo` as format provider, the format is applied in that culture;
   before, the format was ignored. ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
 - README, sample app and benchmarks use `Columns.Add`.
