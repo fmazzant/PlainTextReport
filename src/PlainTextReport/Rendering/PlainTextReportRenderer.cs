@@ -329,7 +329,8 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the column header and its separator line
+        /// Returns the column header, on one line or more with <see cref="PlainTextReportOptions.MultiLineHeader"/>,
+        /// and its separator line
         /// </summary>
         private List<string> GetColumnHeaderLines(int[] widths, string separator)
         {
@@ -339,13 +340,27 @@ namespace Mafesoft.PlainTextReport
                 return lines;
             }
 
-            var builder = new StringBuilder();
+            var captions = new string[columns.Length][];
+            var height = 1;
             for (int i = 0; i < columns.Length; i++)
             {
-                if (i > 0) builder.Append(separator);
-                AppendCell(builder, Clean(columns[i].Caption), widths[i], GetHeaderAlignment(columns[i]));
+                captions[i] = options.MultiLineHeader
+                    ? Wrap(NormalizeLineBreaks(columns[i].Caption), widths[i], textWidth)
+                    : new[] { Clean(columns[i].Caption) };
+                height = Math.Max(height, captions[i].Length);
             }
-            lines.Add(builder.ToString().TrimEnd());
+
+            var builder = new StringBuilder();
+            for (int k = 0; k < height; k++)
+            {
+                builder.Clear();
+                for (int i = 0; i < columns.Length; i++)
+                {
+                    if (i > 0) builder.Append(separator);
+                    AppendCell(builder, k < captions[i].Length ? captions[i][k] : string.Empty, widths[i], GetHeaderAlignment(columns[i]));
+                }
+                lines.Add(builder.ToString().TrimEnd());
+            }
 
             if (options.ShowHeaderSeparator)
             {
@@ -580,6 +595,23 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
+        /// Returns the width the caption needs in an automatic column: the whole caption, or its longest word
+        /// with <see cref="PlainTextReportOptions.MultiLineHeader"/>
+        /// </summary>
+        private int GetCaptionWidth(PlainTextReportColumn column)
+        {
+            if (!options.MultiLineHeader)
+            {
+                return textWidth.GetWidth(Clean(column.Caption));
+            }
+            return NormalizeLineBreaks(column.Caption)
+                .Split(new[] { ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => textWidth.GetWidth(word))
+                .DefaultIfEmpty(0)
+                .Max();
+        }
+
+        /// <summary>
         /// Returns the width a cell needs: its longest line
         /// </summary>
         private int GetCellWidth(string cell, int column)
@@ -659,7 +691,7 @@ namespace Mafesoft.PlainTextReport
                     // without a report width a percentage column is automatic
                 }
 
-                var width = options.ShowHeader ? textWidth.GetWidth(Clean(columns[i].Caption)) : 0;
+                var width = options.ShowHeader ? GetCaptionWidth(columns[i]) : 0;
                 foreach (var cells in rows)
                 {
                     width = Math.Max(width, GetCellWidth(cells[i], i));

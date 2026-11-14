@@ -48,6 +48,9 @@ namespace Mafesoft.PlainTextReport
         public bool MultiLineRows { get; set; }
 
         /// <inheritdoc />
+        public bool MultiLineHeader { get; set; }
+
+        /// <inheritdoc />
         public bool ShowTitle { get; set; }
 
         /// <inheritdoc />

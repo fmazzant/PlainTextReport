@@ -57,6 +57,13 @@ namespace Mafesoft.PlainTextReport
         bool MultiLineRows { get; set; }
 
         /// <summary>
+        /// Multi-line header: a caption longer than its column wraps on more lines, and the line breaks of a caption
+        /// ("Created\non") start a new line. The automatic columns are sized on the longest word of the caption, not
+        /// on the whole caption. When false a caption is kept on one line and truncated.
+        /// </summary>
+        bool MultiLineHeader { get; set; }
+
+        /// <summary>
         /// Show Title
         /// </summary>
         bool ShowTitle { get; set; }
