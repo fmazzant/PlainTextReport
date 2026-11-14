@@ -8,5 +8,6 @@ namespace Mafesoft.PlainTextReport.Tests
         public decimal Price { get; set; }
         public DateTime CreatedOn { get; set; }
         public bool Enabled { get; set; }
+        public string? Category { get; set; }
     }
 }

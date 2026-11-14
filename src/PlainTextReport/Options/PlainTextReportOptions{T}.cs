@@ -27,6 +27,8 @@
 
 namespace Mafesoft.PlainTextReport
 {
+    using System;
+
     /// <summary>
     /// PlainTextReport Options definition
     /// </summary>
@@ -44,6 +46,38 @@ namespace Mafesoft.PlainTextReport
         public PlainTextReportOptions()
         {
             Columns = new PlainTextReportOptionsColumns<T>();
+        }
+
+        /// <summary>
+        /// The settings of the groups; null when the report is not grouped. See <see cref="GroupBy{TKey}"/>.
+        /// </summary>
+        public PlainTextReportGroup Group { get; private set; }
+
+        /// <summary>
+        /// Returns the key of the group of an item; null when the report is not grouped
+        /// </summary>
+        internal Func<T, object> GroupKey { get; private set; }
+
+        /// <summary>
+        /// Groups the rows by a key: a new group starts every time the key changes, with a header above it and,
+        /// optionally, a subtotals row below it. The groups follow the order of the collection, which is not sorted:
+        /// sort it by the key first, otherwise the same key can make more groups. A new call replaces the grouping.
+        /// </summary>
+        /// <typeparam name="TKey">The type of the key</typeparam>
+        /// <param name="key">Returns the key of the group of an item</param>
+        /// <param name="configure">Sets the header, the subtotals and the page breaks of the groups</param>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is null</exception>
+        public void GroupBy<TKey>(Func<T, TKey> key, Action<PlainTextReportGroup> configure = null)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+
+            var group = new PlainTextReportGroup();
+            configure?.Invoke(group);
+            Group = group;
+            GroupKey = model => key(model);
         }
     }
 }
