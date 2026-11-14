@@ -155,7 +155,18 @@ options.Columns.Add(m => m.Price, column => column.Index(0)); // index 0: printe
 
 The `AddColumn` overloads of the previous versions still work, but they are `[Obsolete]` and will be removed in 2.0: `AddColumn(m => m.Price, style => style.Width = 10, columnFormat: "N2")` becomes `Add(m => m.Price, column => column.Width(10).Format("N2"))`.
 
-Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an [`IValueConverter`](#custom-value-converter) instead.
+### Computed columns
+
+A column can also print a computed value, for example `m => m.Price * m.Quantity` or `m => m.FirstName + " " + m.LastName`. There is no property name to use, so the column needs a name:
+
+```c#
+options.Columns.Add("Amount", m => m.Price * m.Quantity, column => column.Format("N2"));
+options.Columns.Add("Customer", m => m.FirstName + " " + m.LastName);
+```
+
+- The expression is compiled as it is. A `NullReferenceException` inside it (`m => m.Customer.Name.ToUpper()` with `Customer == null`) gives an empty cell, or the [null text](#null-values), like a `null` in a nested property; any other exception is a [`PlainTextReportException`](#errors) with the row and the column.
+- The alignment and the [totals row](#totals) use the result type of the expression: `Amount` is a `decimal`, so it is right aligned and it can have a `Sum`.
+- Without a name, `Add(m => m.Price * 2)` throws an `ArgumentException`.
 
 ### Nested properties
 

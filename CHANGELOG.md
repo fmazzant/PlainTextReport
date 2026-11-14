@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   values before they are converted to text, `null` values are skipped, and the result is formatted with the format of
   the column in the culture of the report. With pages the totals row is printed at the end of the last page.
   ([#2](https://github.com/fmazzant/PlainTextReport/issues/2))
+- Computed columns: `options.Columns.Add("Amount", m => m.Price * m.Quantity)` prints any expression of the model, not only
+  a property. The column needs a name; a `NullReferenceException` inside the expression gives an empty cell (or the
+  null text), and the alignment and the totals row use the result type of the expression. The obsolete `AddColumn`
+  overloads with a column name accept a computed value too. ([#17](https://github.com/fmazzant/PlainTextReport/issues/17))
 
 ### Changed
 
