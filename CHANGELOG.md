@@ -5,6 +5,25 @@ All notable changes to the `Mafesoft.PlainTextReport` package are documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-11-14
+
+### Added
+
+- `options.GroupBy(key, group => ...)`: group the rows by a key. Every group starts with a header line (`{key}` by
+  default, or `{key:format}`, formatted in the culture of the report; a `null` key prints the `NullText`), and with
+  `group.ShowSubtotals` ends with a subtotals row that uses the column aggregates of the totals row (`Sum`, `Count`,
+  `Average`, `Min`, `Max`), with or without `ShowTotals`. A group starts every time the key changes: the groups follow
+  the order of the collection, which is never sorted. The settings are in `options.Group` (`PlainTextReportGroup`:
+  `Header`, `ShowSubtotals`, `NewPage`). ([#7](https://github.com/fmazzant/PlainTextReport/issues/7))
+- Groups with pages: a group header is kept together with the first row of its group, the empty line between groups
+  is dropped at the top of a page, `group.NewPage` starts every group on a new page, and `{pages}` counts them.
+  ([#7](https://github.com/fmazzant/PlainTextReport/issues/7))
+
+### Changed
+
+- A key selector that throws gives a `PlainTextReportException` with the row number.
+- Grouped reports are still streamed while they are written when every column has a fixed width.
+
 ## [1.3.0] - 2026-11-14
 
 ### Added
