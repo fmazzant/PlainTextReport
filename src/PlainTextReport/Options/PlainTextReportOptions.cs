@@ -86,6 +86,12 @@ namespace Mafesoft.PlainTextReport
         /// <inheritdoc />
         public bool UnicodeWidth { get; set; } = true;
 
+        /// <inheritdoc />
+        public bool ShowTotals { get; set; }
+
+        /// <inheritdoc />
+        public string TotalsCaption { get; set; } = "Total";
+
         /// <summary>
         /// Returns the line separator: <see cref="NewLine"/>, or <see cref="Environment.NewLine"/> when it is not set
         /// </summary>

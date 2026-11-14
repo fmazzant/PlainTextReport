@@ -14,9 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`, `Style`), so every combination is possible, for example
   an index with a style or a format with a converter. `Add("Name", m => m.Property, ...)` sets the column name.
   ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+- `options.ShowTotals` and `options.TotalsCaption`: a totals row at the end of the report, with the aggregate of every
+  column set by `column.Total(...)` or `style.Total`: `Sum`, `Count`, `Average`, `Min` or `Max`. The aggregates use the
+  values before they are converted to text, `null` values are skipped, and the result is formatted with the format of
+  the column in the culture of the report. With pages the totals row is printed at the end of the last page.
+  ([#2](https://github.com/fmazzant/PlainTextReport/issues/2))
 
 ### Changed
 
+- `IPlainTextReportOptions` has the new `ShowTotals` and `TotalsCaption` properties: a custom implementation of the
+  interface must add them. ([#2](https://github.com/fmazzant/PlainTextReport/issues/2))
 - When a column has both a format and a `CultureInfo` as format provider, the format is applied in that culture;
   before, the format was ignored. ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
 - README, sample app and benchmarks use `Columns.Add`.
