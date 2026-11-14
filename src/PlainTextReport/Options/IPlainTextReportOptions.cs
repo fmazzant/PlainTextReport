@@ -57,6 +57,13 @@ namespace Mafesoft.PlainTextReport
         bool MultiLineRows { get; set; }
 
         /// <summary>
+        /// Multi-line header: a caption longer than its column wraps on more lines, and the line breaks of a caption
+        /// ("Created\non") start a new line. The automatic columns are sized on the longest word of the caption, not
+        /// on the whole caption. When false a caption is kept on one line and truncated.
+        /// </summary>
+        bool MultiLineHeader { get; set; }
+
+        /// <summary>
         /// Show Title
         /// </summary>
         bool ShowTitle { get; set; }
@@ -129,5 +136,18 @@ namespace Mafesoft.PlainTextReport
         /// the UTF-16 code units (string.Length), which is faster for texts without such characters.
         /// </summary>
         bool UnicodeWidth { get; set; }
+
+        /// <summary>
+        /// Prints a totals row at the end of the report, with the aggregate of every column
+        /// (<see cref="PlainTextReportColumnStyle.Total"/>). With pages it is printed at the end of the last page.
+        /// It is preceded by a separator line when <see cref="ShowHeaderSeparator"/> is true.
+        /// </summary>
+        bool ShowTotals { get; set; }
+
+        /// <summary>
+        /// The text printed in the totals row, in the first column without an aggregate; "Total" by default.
+        /// When every column has an aggregate it is not printed.
+        /// </summary>
+        string TotalsCaption { get; set; }
     }
 }

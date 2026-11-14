@@ -48,6 +48,9 @@ namespace Mafesoft.PlainTextReport
         public bool MultiLineRows { get; set; }
 
         /// <inheritdoc />
+        public bool MultiLineHeader { get; set; }
+
+        /// <inheritdoc />
         public bool ShowTitle { get; set; }
 
         /// <inheritdoc />
@@ -85,6 +88,12 @@ namespace Mafesoft.PlainTextReport
 
         /// <inheritdoc />
         public bool UnicodeWidth { get; set; } = true;
+
+        /// <inheritdoc />
+        public bool ShowTotals { get; set; }
+
+        /// <inheritdoc />
+        public string TotalsCaption { get; set; } = "Total";
 
         /// <summary>
         /// Returns the line separator: <see cref="NewLine"/>, or <see cref="Environment.NewLine"/> when it is not set

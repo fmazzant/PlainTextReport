@@ -62,11 +62,11 @@ namespace PlainTextReportBenchmark
                 };
                 options.Page.Footer.Center = "{page}";
             }
-            options.Columns.AddColumn(m => m.Id, style => { if (fixedWidths) style.Width = 8; });
-            options.Columns.AddColumn(m => m.Name, style => { if (fixedWidths) style.Width = "100%"; });
-            options.Columns.AddColumn(m => m.Price, style => { if (fixedWidths) style.Width = 12; });
-            options.Columns.AddColumn(m => m.CreatedOn, style => { if (fixedWidths) style.Width = 10; }, columnFormat: "dd/MM/yyyy");
-            options.Columns.AddColumn(m => m.Enabled, style => { if (fixedWidths) style.Width = 7; });
+            options.Columns.Add(m => m.Id, column => column.Style(style => { if (fixedWidths) style.Width = 8; }));
+            options.Columns.Add(m => m.Name, column => column.Style(style => { if (fixedWidths) style.Width = "100%"; }));
+            options.Columns.Add(m => m.Price, column => column.Style(style => { if (fixedWidths) style.Width = 12; }));
+            options.Columns.Add(m => m.CreatedOn, column => column.Format("dd/MM/yyyy").Style(style => { if (fixedWidths) style.Width = 10; }));
+            options.Columns.Add(m => m.Enabled, column => column.Style(style => { if (fixedWidths) style.Width = 7; }));
             return options;
         }
     }

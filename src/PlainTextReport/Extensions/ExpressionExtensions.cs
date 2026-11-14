@@ -50,23 +50,48 @@ namespace Mafesoft.PlainTextReport.Extensions
         }
 
         /// <summary>
-        /// Compiles a getter of the selected member. When an intermediate value is null
-        /// (m.Customer in m => m.Customer.Name) the getter returns null.
+        /// Compiles a getter of the value. For a property or a field, when an intermediate value is null
+        /// (m.Customer in m => m.Customer.Name) the getter returns null. Any other expression is a computed
+        /// value, compiled as it is: a <see cref="NullReferenceException"/> inside it returns null.
         /// </summary>
         /// <typeparam name="M">The model type</typeparam>
-        /// <param name="expression">A lambda expression that selects a property or a field</param>
+        /// <param name="expression">A lambda expression with the model as parameter</param>
         /// <returns></returns>
         public static Func<M, object> CreateGetter<M>(this LambdaExpression expression)
         {
-            var path = GetMemberPath(expression);
+            if (expression == null)
+            {
+                throw new ArgumentNullException(nameof(expression));
+            }
+
             var model = Expression.Parameter(typeof(M), "model");
-            var body = Access(model, path, 0);
-            return Expression.Lambda<Func<M, object>>(body, model).Compile();
+            var path = TryGetMemberPath(expression);
+            if (path != null)
+            {
+                var body = Access(model, path, 0);
+                return Expression.Lambda<Func<M, object>>(body, model).Compile();
+            }
+
+            var computed = Expression.Lambda<Func<M, object>>(
+                Expression.Convert(Expression.Invoke(expression, model), typeof(object)), model).Compile();
+            return value =>
+            {
+                try
+                {
+                    return computed(value);
+                }
+                catch (NullReferenceException)
+                {
+                    // like a null intermediate value of a nested property
+                    return null;
+                }
+            };
         }
 
         /// <summary>
         /// Returns the members selected by the expression, from the model to the value
         /// </summary>
+        /// <exception cref="ArgumentException">The expression does not select a property or a field</exception>
         private static List<MemberInfo> GetMemberPath(LambdaExpression expression)
         {
             if (expression == null)
@@ -74,6 +99,16 @@ namespace Mafesoft.PlainTextReport.Extensions
                 throw new ArgumentNullException(nameof(expression));
             }
 
+            return TryGetMemberPath(expression)
+                ?? throw new ArgumentException($"The expression {expression} does not select a property or a field of the model, so the column needs a name: Add(\"Amount\", m => m.Price * m.Quantity).", nameof(expression));
+        }
+
+        /// <summary>
+        /// Returns the members selected by the expression, from the model to the value; null when the expression
+        /// is not a property or a field of the model
+        /// </summary>
+        private static List<MemberInfo> TryGetMemberPath(LambdaExpression expression)
+        {
             var path = new List<MemberInfo>();
             var current = StripConvert(expression.Body);
             while (current is MemberExpression member)
@@ -88,7 +123,7 @@ namespace Mafesoft.PlainTextReport.Extensions
 
             if (path.Count == 0 || current != expression.Parameters[0])
             {
-                throw new ArgumentException($"The expression {expression} must select a property or a field of the model, for example m => m.Name or m => m.Customer.Name.", nameof(expression));
+                return null;
             }
             return path;
         }

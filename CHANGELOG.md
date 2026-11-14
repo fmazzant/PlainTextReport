@@ -5,6 +5,44 @@ All notable changes to the `Mafesoft.PlainTextReport` package are documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-11-14
+
+### Added
+
+- `options.Columns.Add(m => m.Price, column => column.Caption("Price").Format("N2").Width(10)...)`: a fluent column
+  builder with every setting of a column in one place (`Caption`, `Index`, `Format`, `FormatProvider`, `Converter`,
+  `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`, `Style`), so every combination is possible, for example
+  an index with a style or a format with a converter. `Add("Name", m => m.Property, ...)` sets the column name.
+  ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+- `options.ShowTotals` and `options.TotalsCaption`: a totals row at the end of the report, with the aggregate of every
+  column set by `column.Total(...)` or `style.Total`: `Sum`, `Count`, `Average`, `Min` or `Max`. The aggregates use the
+  values before they are converted to text, `null` values are skipped, and the result is formatted with the format of
+  the column in the culture of the report. With pages the totals row is printed at the end of the last page.
+  ([#2](https://github.com/fmazzant/PlainTextReport/issues/2))
+- Computed columns: `options.Columns.Add("Amount", m => m.Price * m.Quantity)` prints any expression of the model, not only
+  a property. The column needs a name; a `NullReferenceException` inside the expression gives an empty cell (or the
+  null text), and the alignment and the totals row use the result type of the expression. The obsolete `AddColumn`
+  overloads with a column name accept a computed value too. ([#17](https://github.com/fmazzant/PlainTextReport/issues/17))
+- `options.MultiLineHeader`: a caption longer than its column wraps on more lines, and a line break in a caption
+  (`"Created\non"`) starts a new line. The automatic columns are sized on the longest word of the caption, and with
+  pages the header height is counted, also with `RepeatColumnHeader`. ([#4](https://github.com/fmazzant/PlainTextReport/issues/4))
+
+### Changed
+
+- `IPlainTextReportOptions` has the new `ShowTotals`, `TotalsCaption` and `MultiLineHeader` properties: a custom
+  implementation of the interface must add them. ([#2](https://github.com/fmazzant/PlainTextReport/issues/2),
+  [#4](https://github.com/fmazzant/PlainTextReport/issues/4))
+- When a column has both a format and a `CultureInfo` as format provider, the format is applied in that culture;
+  before, the format was ignored. ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+- README, sample app and benchmarks use `Columns.Add`.
+- CI and CodeQL run on the `release/*` and `release-candidate/*` branches too, not only on `main`.
+
+### Deprecated
+
+- The `AddColumn` overloads are `[Obsolete]`: they still work, and they will be removed in 2.0
+  ([#37](https://github.com/fmazzant/PlainTextReport/issues/37)). Use `Columns.Add` instead.
+  ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+
 ## [1.2.1] - 2026-11-14
 
 ### Changed
@@ -76,6 +114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First release.
 
+[1.3.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.2.1...v1.3.0
 [1.2.1]: https://github.com/fmazzant/PlainTextReport/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/fmazzant/PlainTextReport/compare/v1.0.0.1...v1.1.0

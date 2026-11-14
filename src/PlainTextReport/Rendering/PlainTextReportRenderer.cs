@@ -78,6 +78,34 @@ namespace Mafesoft.PlainTextReport
             this.multiLine = columns.Select(c => c.Style.MultiLine ?? options.MultiLineRows).ToArray();
             this.formatProviders = columns.Select(c => c.GetFormatProvider(culture)).ToArray();
             this.nullTexts = columns.Select(c => c.Style.NullText ?? options.NullText).ToArray();
+            if (options.ShowTotals)
+            {
+                foreach (var column in columns)
+                {
+                    ValidateTotal(column);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks that the aggregate of the column can be computed on its type
+        /// </summary>
+        private static void ValidateTotal(PlainTextReportColumn column)
+        {
+            var total = column.Style.Total;
+            var type = Nullable.GetUnderlyingType(column.ColumnType) ?? column.ColumnType;
+            if ((total == PlainTextReportTotal.Sum || total == PlainTextReportTotal.Average) && !IsNumeric(type))
+            {
+                throw new InvalidOperationException($"The total {total} of column '{column.ColumnName}' needs a numeric column, not {type.Name}.");
+            }
+            if ((total == PlainTextReportTotal.Min || total == PlainTextReportTotal.Max) && !typeof(IComparable).IsAssignableFrom(type))
+            {
+                throw new InvalidOperationException($"The total {total} of column '{column.ColumnName}' needs values that can be compared, not {type.Name}.");
+            }
+            if (!Enum.IsDefined(typeof(PlainTextReportTotal), total))
+            {
+                throw new InvalidOperationException($"The total {total} of column '{column.ColumnName}' is not valid.");
+            }
         }
 
         /// <summary>
@@ -175,6 +203,11 @@ namespace Mafesoft.PlainTextReport
             /// The cells of every row: a list when they are needed more than once, otherwise read while the report is written
             /// </summary>
             public IEnumerable<string[]> Rows;
+
+            /// <summary>
+            /// The aggregates of the columns, computed while the rows are read; null without the totals row
+            /// </summary>
+            public ColumnTotal[] Totals;
         }
 
         /// <summary>
@@ -191,13 +224,16 @@ namespace Mafesoft.PlainTextReport
                 maxWidth = maxWidth > 0 ? Math.Min(maxWidth, page.PrintableWidth) : page.PrintableWidth;
             }
 
-            IEnumerable<string[]> rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index));
+            var totals = options.ShowTotals && columns.Length > 0
+                ? columns.Select(column => new ColumnTotal(column.Style.Total, column.ColumnType)).ToArray()
+                : null;
+            IEnumerable<string[]> rows = (values ?? Enumerable.Empty<T>()).Select((model, index) => GetCells(model, index, totals));
             if (columns.Any(column => NeedsValues(column, maxWidth)) || (page != null && UsesPageCount(page)))
             {
                 rows = rows.ToList();
             }
 
-            var widths = GetColumnWidths(rows, maxWidth);
+            var widths = GetColumnWidths(rows, maxWidth, totals);
             var separator = options.ShowColumnSeparator ? $" {options.ColumnSeparator} " : " ";
             var tableWidth = columns.Length == 0 ? 0 : widths.Sum() + separator.Length * (columns.Length - 1);
 
@@ -209,6 +245,7 @@ namespace Mafesoft.PlainTextReport
                 Title = GetTitleLines(tableWidth, maxWidth),
                 ColumnHeader = GetColumnHeaderLines(widths, separator),
                 Rows = rows,
+                Totals = totals,
             };
         }
 
@@ -240,7 +277,7 @@ namespace Mafesoft.PlainTextReport
         {
             foreach (var line in layout.Title) yield return line;
             foreach (var line in layout.ColumnHeader) yield return line;
-            foreach (var row in GetRowLines(layout.Rows, layout.Widths, layout.Separator))
+            foreach (var row in GetRowLines(layout))
             {
                 foreach (var line in row) yield return line;
             }
@@ -292,7 +329,8 @@ namespace Mafesoft.PlainTextReport
         }
 
         /// <summary>
-        /// Returns the column header and its separator line
+        /// Returns the column header, on one line or more with <see cref="PlainTextReportOptions.MultiLineHeader"/>,
+        /// and its separator line
         /// </summary>
         private List<string> GetColumnHeaderLines(int[] widths, string separator)
         {
@@ -302,33 +340,159 @@ namespace Mafesoft.PlainTextReport
                 return lines;
             }
 
-            var builder = new StringBuilder();
+            var captions = new string[columns.Length][];
+            var height = 1;
             for (int i = 0; i < columns.Length; i++)
             {
-                if (i > 0) builder.Append(separator);
-                AppendCell(builder, Clean(columns[i].Caption), widths[i], GetHeaderAlignment(columns[i]));
+                captions[i] = options.MultiLineHeader
+                    ? Wrap(NormalizeLineBreaks(columns[i].Caption), widths[i], textWidth)
+                    : new[] { Clean(columns[i].Caption) };
+                height = Math.Max(height, captions[i].Length);
             }
-            lines.Add(builder.ToString().TrimEnd());
+
+            var builder = new StringBuilder();
+            for (int k = 0; k < height; k++)
+            {
+                builder.Clear();
+                for (int i = 0; i < columns.Length; i++)
+                {
+                    if (i > 0) builder.Append(separator);
+                    AppendCell(builder, k < captions[i].Length ? captions[i][k] : string.Empty, widths[i], GetHeaderAlignment(columns[i]));
+                }
+                lines.Add(builder.ToString().TrimEnd());
+            }
 
             if (options.ShowHeaderSeparator)
             {
-                var join = options.ShowColumnSeparator ? $"{options.HeaderSeparator}+{options.HeaderSeparator}" : " ";
-                lines.Add(string.Join(join, widths.Select(w => new string(options.HeaderSeparator, w))));
+                lines.Add(GetSeparatorLine(widths));
             }
             return lines;
         }
 
         /// <summary>
-        /// Returns the lines of every row, while the rows are read: one line, or more when a multi-line value wraps
+        /// Returns the separator line below the header and above the totals row
         /// </summary>
-        private IEnumerable<string[]> GetRowLines(IEnumerable<string[]> rows, int[] widths, string separator)
+        private string GetSeparatorLine(int[] widths)
+        {
+            var join = options.ShowColumnSeparator ? $"{options.HeaderSeparator}+{options.HeaderSeparator}" : " ";
+            return string.Join(join, widths.Select(w => new string(options.HeaderSeparator, w)));
+        }
+
+        /// <summary>
+        /// Returns the lines of every row, while the rows are read: one line, or more when a multi-line value wraps.
+        /// The totals row, with its separator, is the last block, after the values have been read.
+        /// </summary>
+        private IEnumerable<string[]> GetRowLines(Layout layout)
         {
             if (columns.Length == 0)
             {
                 yield break;
             }
 
+            var widths = layout.Widths;
+            var separator = layout.Separator;
             var alignments = columns.Select(GetAlignment).ToArray();
+            foreach (var lines in GetRowLines(layout.Rows, widths, separator, alignments))
+            {
+                yield return lines;
+            }
+
+            if (layout.Totals != null)
+            {
+                yield return GetTotalsLines(layout.Totals, widths, separator, alignments);
+            }
+        }
+
+        /// <summary>
+        /// Returns the totals row, preceded by the separator line when <see cref="PlainTextReportOptions.ShowHeaderSeparator"/> is true
+        /// </summary>
+        private string[] GetTotalsLines(ColumnTotal[] totals, int[] widths, string separator, PlainTextReportAlignment[] alignments)
+        {
+            var cells = GetTotalsCells(totals);
+            var builder = new StringBuilder();
+            for (int i = 0; i < cells.Length; i++)
+            {
+                if (i > 0) builder.Append(separator);
+                AppendCell(builder, cells[i], widths[i], alignments[i]);
+            }
+
+            var row = builder.ToString().TrimEnd();
+            return options.ShowHeaderSeparator ? new[] { GetSeparatorLine(widths), row } : new[] { row };
+        }
+
+        /// <summary>
+        /// Returns the number of lines of the totals row, separator included
+        /// </summary>
+        private int GetTotalsHeight()
+        {
+            return options.ShowHeaderSeparator ? 2 : 1;
+        }
+
+        /// <summary>
+        /// Returns the cells of the totals row: the aggregates, formatted with the format of the column in the culture
+        /// of the report, and the caption in the first column without an aggregate
+        /// </summary>
+        private string[] GetTotalsCells(ColumnTotal[] totals)
+        {
+            var cells = new string[columns.Length];
+            var captionPrinted = false;
+            for (int i = 0; i < columns.Length; i++)
+            {
+                var total = totals[i];
+                string text;
+                switch (total.Kind)
+                {
+                    case PlainTextReportTotal.None:
+                        text = captionPrinted ? null : options.TotalsCaption;
+                        captionPrinted = true;
+                        break;
+                    case PlainTextReportTotal.Count:
+                        text = ((long)total.Result).ToString(formatProviders[i] as CultureInfo ?? culture);
+                        break;
+                    default:
+                        text = GetTotalText(i, total);
+                        break;
+                }
+                cells[i] = Clean(text);
+            }
+            return cells;
+        }
+
+        /// <summary>
+        /// Returns the text of an aggregate: the minimum and the maximum are converted like the values of the column,
+        /// the sum and the average are formatted with the format of the column
+        /// </summary>
+        private string GetTotalText(int i, ColumnTotal total)
+        {
+            var column = columns[i];
+            object result;
+            try
+            {
+                result = total.Result;
+            }
+            catch (Exception ex)
+            {
+                throw new PlainTextReportException(
+                    $"Cannot compute the total {total.Kind} of column '{column.ColumnName}': {ex.Message}",
+                    0, column.ColumnName, null, ex);
+            }
+
+            if (result == null)
+            {
+                return nullTexts[i];
+            }
+            if (total.Kind == PlainTextReportTotal.Min || total.Kind == PlainTextReportTotal.Max)
+            {
+                return column.Converter.Convert(result, null, formatProviders[i]) ?? nullTexts[i];
+            }
+            return string.Format(formatProviders[i], "{0}", result);
+        }
+
+        /// <summary>
+        /// Returns the lines of the rows, while the rows are read
+        /// </summary>
+        private IEnumerable<string[]> GetRowLines(IEnumerable<string[]> rows, int[] widths, string separator, PlainTextReportAlignment[] alignments)
+        {
             var builder = new StringBuilder();
             var cellLines = new string[columns.Length][];
             foreach (var cells in rows)
@@ -377,7 +541,8 @@ namespace Mafesoft.PlainTextReport
         /// </summary>
         /// <param name="model">The item</param>
         /// <param name="index">The zero-based position of the item in the collection</param>
-        private string[] GetCells(T model, int index)
+        /// <param name="totals">The aggregates of the columns, which receive the values; null without the totals row</param>
+        private string[] GetCells(T model, int index, ColumnTotal[] totals)
         {
             var cells = new string[columns.Length];
             for (int i = 0; i < columns.Length; i++)
@@ -393,6 +558,20 @@ namespace Mafesoft.PlainTextReport
                     throw new PlainTextReportException(
                         $"Cannot read the value of column '{column.ColumnName}' at row {index + 1}: {ex.Message}",
                         index + 1, column.ColumnName, null, ex);
+                }
+
+                if (totals != null)
+                {
+                    try
+                    {
+                        totals[i].Add(value);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new PlainTextReportException(
+                            $"Cannot add the value of column '{column.ColumnName}' at row {index + 1} to the total {totals[i].Kind}: {ex.Message}",
+                            index + 1, column.ColumnName, value, ex);
+                    }
                 }
 
                 // a null value is the null text, unless a custom converter prints it; a null converted text is the null text too
@@ -413,6 +592,23 @@ namespace Mafesoft.PlainTextReport
                 cells[i] = multiLine[i] ? NormalizeLineBreaks(text) : Clean(text);
             }
             return cells;
+        }
+
+        /// <summary>
+        /// Returns the width the caption needs in an automatic column: the whole caption, or its longest word
+        /// with <see cref="PlainTextReportOptions.MultiLineHeader"/>
+        /// </summary>
+        private int GetCaptionWidth(PlainTextReportColumn column)
+        {
+            if (!options.MultiLineHeader)
+            {
+                return textWidth.GetWidth(Clean(column.Caption));
+            }
+            return NormalizeLineBreaks(column.Caption)
+                .Split(new[] { ' ', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => textWidth.GetWidth(word))
+                .DefaultIfEmpty(0)
+                .Max();
         }
 
         /// <summary>
@@ -471,10 +667,12 @@ namespace Mafesoft.PlainTextReport
         /// </summary>
         /// <param name="rows">The cells of the rows; they are read only for the columns that fit their values</param>
         /// <param name="maxWidth">The report width, 0 for no limit</param>
-        private int[] GetColumnWidths(IEnumerable<string[]> rows, int maxWidth)
+        /// <param name="totals">The aggregates of the columns, complete once the rows are read; null without the totals row</param>
+        private int[] GetColumnWidths(IEnumerable<string[]> rows, int maxWidth, ColumnTotal[] totals)
         {
             var widths = new int[columns.Length];
             var percents = new double[columns.Length];
+            string[] totalsCells = null;
             for (int i = 0; i < columns.Length; i++)
             {
                 if (columns[i].Style.Width is ColumnWidth columnWidth)
@@ -493,10 +691,16 @@ namespace Mafesoft.PlainTextReport
                     // without a report width a percentage column is automatic
                 }
 
-                var width = options.ShowHeader ? textWidth.GetWidth(Clean(columns[i].Caption)) : 0;
+                var width = options.ShowHeader ? GetCaptionWidth(columns[i]) : 0;
                 foreach (var cells in rows)
                 {
                     width = Math.Max(width, GetCellWidth(cells[i], i));
+                }
+                if (totals != null)
+                {
+                    // an automatic column reads every row first, so the aggregates are complete
+                    totalsCells = totalsCells ?? GetTotalsCells(totals);
+                    width = Math.Max(width, textWidth.GetWidth(totalsCells[i]));
                 }
                 widths[i] = Math.Max(1, width);
             }
@@ -684,10 +888,14 @@ namespace Mafesoft.PlainTextReport
             if (UsesPageCount(page))
             {
                 var heights = layout.Rows.Select(cells => new string[GetRowHeight(cells, layout.Widths)]);
+                if (layout.Totals != null)
+                {
+                    heights = heights.Concat(new[] { new string[GetTotalsHeight()] });
+                }
                 count = SplitBodies(page, capacity, layout.Title, layout.ColumnHeader, columns.Length == 0 ? Enumerable.Empty<string[]>() : heights).Count();
             }
 
-            var rows = GetRowLines(layout.Rows, layout.Widths, layout.Separator);
+            var rows = GetRowLines(layout);
             var titleText = options.IsMultiLineTitle ? string.Join(" ", options.MultiLineTitle) : options.Title ?? string.Empty;
             var margin = new string(' ', page.MarginLeft);
             var number = 0;

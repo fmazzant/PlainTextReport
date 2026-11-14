@@ -67,5 +67,12 @@ namespace Mafesoft.PlainTextReport
         /// property is null, and when a custom converter returns null. When null <see cref="PlainTextReportOptions.NullText"/> is used.
         /// </summary>
         public string NullText { get; set; }
+
+        /// <summary>
+        /// The aggregate printed in the totals row when <see cref="PlainTextReportOptions.ShowTotals"/> is true:
+        /// sum, count, average, minimum or maximum. It is computed from the values before they are converted to text,
+        /// and formatted with the format of the column in the culture of the report. The default is none.
+        /// </summary>
+        public PlainTextReportTotal Total { get; set; }
     }
 }
