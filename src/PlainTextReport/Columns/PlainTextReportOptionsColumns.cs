@@ -82,7 +82,7 @@ namespace Mafesoft.PlainTextReport
         /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
         /// <param name="column">Sets the column: caption, index, format, format provider, converter, width, alignment, multi-line, null text</param>
         /// <exception cref="ArgumentNullException">The expression is null</exception>
-        /// <exception cref="ArgumentException">The expression does not select a property or a field of the model</exception>
+        /// <exception cref="ArgumentException">The expression does not select a property or a field of the model: a computed value needs a name, Add("Amount", m =&gt; m.Price * m.Quantity)</exception>
         public void Add<T>(Expression<Func<M, T>> expression, Action<PlainTextReportColumnBuilder> column = null)
         {
             if (expression == null)
@@ -96,14 +96,15 @@ namespace Mafesoft.PlainTextReport
         /// Add a column with the given name, with every setting in one place:
         /// <code>
         /// options.Columns.Add("Product", m => m.Name, column => column.Width(20));
+        /// options.Columns.Add("Amount", m => m.Price * m.Quantity, column => column.Format("N2"));
         /// </code>
         /// </summary>
         /// <typeparam name="T">The type of the value</typeparam>
-        /// <param name="columnName">The name of the column, printed in the header when there is no caption; null for the name of the property</param>
-        /// <param name="expression">The property or field of the model, also nested: m =&gt; m.Customer.Name</param>
+        /// <param name="columnName">The name of the column, printed in the header when there is no caption; null for the name of the property (required for a computed value)</param>
+        /// <param name="expression">The property or field of the model, also nested (m =&gt; m.Customer.Name), or a computed value (m =&gt; m.Price * m.Quantity): a NullReferenceException inside it gives an empty cell</param>
         /// <param name="column">Sets the column: caption, index, format, format provider, converter, width, alignment, multi-line, null text</param>
         /// <exception cref="ArgumentNullException">The expression is null</exception>
-        /// <exception cref="ArgumentException">The expression does not select a property or a field of the model</exception>
+        /// <exception cref="ArgumentException">The expression is a computed value and the name is null</exception>
         public void Add<T>(string columnName, Expression<Func<M, T>> expression, Action<PlainTextReportColumnBuilder> column = null)
         {
             if (expression == null)
