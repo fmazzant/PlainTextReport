@@ -68,11 +68,11 @@ var report = new PlainTextReport<Model>(options =>
     options.Width = 80;
 
     // Columns
-    options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => style.Width = 20);
-    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
-    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
-    options.Columns.AddColumn(m => m.Enabled, style => style.Alignment = PlainTextReportAlignment.Center, new CustomBooleanConverter());
+    options.Columns.Add(m => m.Id);
+    options.Columns.Add(m => m.Name, column => column.Width(20));
+    options.Columns.Add(m => m.Price, column => column.Format("N2"));
+    options.Columns.Add(m => m.CreatedOn, column => column.Format("dd/MM/yyyy"));
+    options.Columns.Add(m => m.Enabled, column => column.Align(PlainTextReportAlignment.Center).Converter(new CustomBooleanConverter()));
 });
 
 string text = report.Bind(models).GetTextReport();
@@ -113,28 +113,44 @@ Id | Name                 | Price | CreatedOn  | Enabled
 
 ## Columns
 
-A column is defined by a property or a field of the model. `AddColumn` has several overloads, so a column can also specify:
-
-- a name (`columnName`) or a position (`columnIndex`); the columns are printed in `columnIndex` order;
-- a format string (`columnFormat`), for example `"dd/MM/yyyy"` for dates or `"N2"` for numbers;
-- an `IFormatProvider`;
-- a custom `IValueConverter`;
-- a style (`PlainTextReportColumnStyle`).
+A column is defined by a property or a field of the model. `Columns.Add` takes the property and, optionally, a builder with every setting of the column in one place:
 
 ```c#
-options.Columns.AddColumn(m => m.Id, style => { });
-options.Columns.AddColumn("Product", m => m.Name);
-options.Columns.AddColumn(0, "Code", m => m.Id, new CultureInfo("it-IT"));
-options.Columns.AddColumn(m => m.Enabled, style => { }, new CustomBooleanConverter());
+options.Columns.Add(m => m.Id);
+options.Columns.Add("Product", m => m.Name);    // with a column name
+options.Columns.Add(m => m.Price, column => column
+    .Caption("Price")
+    .Format("N2")
+    .Width(10)
+    .Align(PlainTextReportAlignment.Right)
+    .Converter(new EuroConverter())
+    .Index(2));
 ```
 
-Two columns can have the same `columnIndex`: they are not an error, and they are printed in the order they were added in. The overloads without `columnIndex` use the number of columns already added as index, so mixing them with explicit indexes can give duplicates:
+| Method | Description |
+|---|---|
+| `Caption(text)` | The text printed in the header. See [Column style](#column-style). |
+| `Index(n)` | The position of the column: the columns are printed in index order. |
+| `Format(format)` | The format of the values, for example `"dd/MM/yyyy"` for dates or `"N2"` for numbers, in the [culture](#culture) of the report. |
+| `FormatProvider(provider)` | An `IFormatProvider` for the column; with a `CultureInfo`, `Format` is applied in that culture. |
+| `Converter(converter)` | A custom [`IValueConverter`](#custom-value-converter). |
+| `Width(width)` | Width in characters (`20`) or percentage of the free space (`"50%"`). |
+| `Align(alignment)`, `HeaderAlign(alignment)` | Alignment of the values and of the header. |
+| `MultiLine(bool)` | Wraps the values on more lines. See [Multi-line rows](#multi-line-rows). |
+| `NullText(text)` | The text printed for a `null` value. See [Null values](#null-values). |
+| `Style(style => ...)` | Sets the `PlainTextReportColumnStyle` directly. |
+
+Every combination works, for example a format with a converter, and when a setting is set twice the last one wins.
+
+Two columns can have the same index: they are not an error, and they are printed in the order they were added in. A column without `Index` uses the number of columns already added as index, so mixing them with explicit indexes can give duplicates:
 
 ```c#
-options.Columns.AddColumn(1, m => m.Name);     // index 1
-options.Columns.AddColumn("Code", m => m.Id);  // index 1 too (one column already added): printed after Name
-options.Columns.AddColumn(0, m => m.Price);    // index 0: printed first
+options.Columns.Add(m => m.Name, column => column.Index(1));  // index 1
+options.Columns.Add("Code", m => m.Id);                       // index 1 too (one column already added): printed after Name
+options.Columns.Add(m => m.Price, column => column.Index(0)); // index 0: printed first
 ```
+
+The `AddColumn` overloads of the previous versions still work, but they are `[Obsolete]` and will be removed in 2.0: `AddColumn(m => m.Price, style => style.Width = 10, columnFormat: "N2")` becomes `Add(m => m.Price, column => column.Width(10).Format("N2"))`.
 
 Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` throw an `ArgumentException`, use an [`IValueConverter`](#custom-value-converter) instead.
 
@@ -143,18 +159,20 @@ Only members can be selected: `m => m.Price * 2` or `m => m.Name.ToUpper()` thro
 A column can read a property of a property, at any depth:
 
 ```c#
-options.Columns.AddColumn(m => m.Customer.Address.City, style => { });
+options.Columns.Add(m => m.Customer.Address.City);
 ```
 
 - When an intermediate value is `null` (an order without a customer) the cell is empty (or the [null text](#null-values)), without a `NullReferenceException`.
-- The default name of a nested column is its path, `Customer.Address.City`. Give it a `columnName` or a [caption](#column-style) to print something else.
+- The default name of a nested column is its path, `Customer.Address.City`. Give it a column name or a [caption](#column-style) to print something else.
 - `Nullable<T>` values work too: `m => m.ShippedOn.Value.Year` is empty when `ShippedOn` is `null`.
 
 ### Column style
 
+The style is set by the builder methods of the same name (`Caption`, `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`) or directly with `Style(style => ...)`.
+
 | Property | Default | Description |
 |---|---|---|
-| `Caption` | `null` | The text printed in the header. When `null` it is the column name (`columnName`, or the name of the property). |
+| `Caption` | `null` | The text printed in the header. When `null` it is the column name (given to `Add`, or the name of the property). |
 | `Width` | `null` | Width of the column, in characters (`20`) or as percentage of the free space (`"50%"`). When `null` the width fits the header and the longest value. |
 | `Alignment` | `null` | `Left`, `Right` or `Center`. When `null` numbers are right aligned and everything else is left aligned. |
 | `HeaderAlignment` | `null` | Alignment of the header. When `null` it is the same as `Alignment`. |
@@ -162,12 +180,11 @@ options.Columns.AddColumn(m => m.Customer.Address.City, style => { });
 | `NullText` | `null` | The text printed for a `null` value of the column. When `null` it is the same as `options.NullText`. See [Null values](#null-values). |
 
 ```c#
-options.Columns.AddColumn(m => m.Price, style =>
-{
-    style.Caption = "Prezzo";
-    style.Width = 10;
-    style.Alignment = PlainTextReportAlignment.Right;
-}, columnFormat: "N2");
+options.Columns.Add(m => m.Price, column => column
+    .Caption("Prezzo")
+    .Width(10)
+    .Align(PlainTextReportAlignment.Right)
+    .Format("N2"));
 ```
 
 The caption changes only the header: the column name is still used to identify the column.
@@ -177,22 +194,22 @@ The caption changes only the header: the column name is still used to identify t
 A `null` value is an empty cell. Set `NullText` to print a placeholder instead, for the whole report or for a single column:
 
 ```c#
-options.NullText = "-";                                                    // whole report
-options.Columns.AddColumn(m => m.Name, style => style.NullText = "n/a");  // single column, wins over the report
+options.NullText = "-";                                            // whole report
+options.Columns.Add(m => m.Name, column => column.NullText("n/a"));  // single column, wins over the report
 ```
 
 - It is also used when an intermediate value of a nested property is `null` (`m => m.Customer.Name` with `Customer == null`).
 - A custom converter still receives the `null` values, so it can print them its own way; when a converter returns `null`, `NullText` is used.
-- `style.NullText = ""` keeps the cells of a column empty even when the report has a `NullText`.
+- `NullText("")` keeps the cells of a column empty even when the report has a `NullText`.
 
 ### Column width in characters or percentage
 
 `Width` is a `ColumnWidth`: it can be set with an `int` (characters) or with a string (`"20"` characters, `"50%"` percentage). `ColumnWidth.Characters(20)` and `ColumnWidth.Percent(50)` do the same.
 
 ```c#
-options.Columns.AddColumn(m => m.Id, style => style.Width = 6);          // 6 characters
-options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");   // all the free space
-options.Columns.AddColumn(m => m.Notes, style => style.Width = "50%");   // half of the free space
+options.Columns.Add(m => m.Id, column => column.Width(6));          // 6 characters
+options.Columns.Add(m => m.Name, column => column.Width("100%"));   // all the free space
+options.Columns.Add(m => m.Notes, column => column.Width("50%"));   // half of the free space
 ```
 
 A percentage is a share of the **free space**: the report width (`options.Width`, or the printable width of the page) minus the column separators and the columns with a fixed or automatic width.
@@ -228,13 +245,13 @@ The result depends on the font of the terminal or the printer, which should be m
 
 ### Multi-line rows
 
-With `options.MultiLineRows = true` a value longer than its column is not truncated: it wraps on more lines, breaking between the words (a word longer than the column is split). The line breaks of a value start a new line, and the row is as tall as its tallest cell. A single column can turn it on or off with `style.MultiLine`.
+With `options.MultiLineRows = true` a value longer than its column is not truncated: it wraps on more lines, breaking between the words (a word longer than the column is split). The line breaks of a value start a new line, and the row is as tall as its tallest cell. A single column can turn it on or off with `MultiLine(true)` or `MultiLine(false)`.
 
 ```c#
 options.MultiLineRows = true;
-options.Columns.AddColumn(m => m.Id, style => { });
-options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
-options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+options.Columns.Add(m => m.Id);
+options.Columns.Add(m => m.Name, column => column.Width(16));
+options.Columns.Add(m => m.Price, column => column.Format("N2"));
 ```
 
 ```text
@@ -254,9 +271,11 @@ Values are formatted with the invariant culture, so a report is the same on ever
 
 ```c#
 options.Culture = new CultureInfo("it-IT");
-options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");                // 1.234,50
-options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd MMMM yyyy");  // 02 gennaio 2024
-options.Columns.AddColumn(m => m.UpdatedOn, new CultureInfo("en-US"));                    // the column's provider wins
+options.Columns.Add(m => m.Price, column => column.Format("N2"));                    // 1.234,50
+options.Columns.Add(m => m.CreatedOn, column => column.Format("dd MMMM yyyy"));      // 02 gennaio 2024
+options.Columns.Add(m => m.UpdatedOn, column => column
+    .Format("dd MMMM yyyy")
+    .FormatProvider(new CultureInfo("en-US")));                                      // 02 January 2024: the column's culture wins
 ```
 
 The culture is also used by the `{date}` placeholder of header and footer, and it is passed to the custom converters as `provider`.
@@ -312,8 +331,8 @@ var report = new PlainTextReport<Model>(options =>
     options.Page.Footer.Center = "Page {page} of {pages}";
     options.Page.Footer.ShowSeparator = true;
 
-    options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");
+    options.Columns.Add(m => m.Id);
+    options.Columns.Add(m => m.Name, column => column.Width("100%"));
 });
 ```
 
@@ -461,8 +480,8 @@ report.Bind(models).WriteTo(Console.Out);
 - When every column has a fixed width (characters, or a percentage with `options.Width` or page settings) and `{pages}` is not used, the collection is read one item at a time while the report is written: a report of millions of rows can be written from a database reader without loading it.
 
 ```c#
-options.Columns.AddColumn(m => m.Id, style => style.Width = 8);
-options.Columns.AddColumn(m => m.Name, style => style.Width = "100%");
+options.Columns.Add(m => m.Id, column => column.Width(8));
+options.Columns.Add(m => m.Name, column => column.Width("100%"));
 options.Width = 80;
 
 // the rows are read while the file is written

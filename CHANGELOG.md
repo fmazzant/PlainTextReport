@@ -5,6 +5,28 @@ All notable changes to the `Mafesoft.PlainTextReport` package are documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `options.Columns.Add(m => m.Price, column => column.Caption("Price").Format("N2").Width(10)...)`: a fluent column
+  builder with every setting of a column in one place (`Caption`, `Index`, `Format`, `FormatProvider`, `Converter`,
+  `Width`, `Align`, `HeaderAlign`, `MultiLine`, `NullText`, `Style`), so every combination is possible, for example
+  an index with a style or a format with a converter. `Add("Name", m => m.Property, ...)` sets the column name.
+  ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+
+### Changed
+
+- When a column has both a format and a `CultureInfo` as format provider, the format is applied in that culture;
+  before, the format was ignored. ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+- README, sample app and benchmarks use `Columns.Add`.
+
+### Deprecated
+
+- The `AddColumn` overloads are `[Obsolete]`: they still work, and they will be removed in 2.0
+  ([#37](https://github.com/fmazzant/PlainTextReport/issues/37)). Use `Columns.Add` instead.
+  ([#6](https://github.com/fmazzant/PlainTextReport/issues/6))
+
 ## [1.2.1] - 2026-11-14
 
 ### Changed

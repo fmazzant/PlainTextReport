@@ -39,7 +39,7 @@ namespace Mafesoft.PlainTextReport
     {
         /// <summary>
         /// Column's index: the columns are printed in index order. Two columns can have the same index:
-        /// they keep the order they were added in. The AddColumn overloads without an index use the number
+        /// they keep the order they were added in. A column added without an index uses the number
         /// of columns already added, so mixing them with explicit indexes can give duplicates.
         /// </summary>
         public int ColumnIndex { get; internal set; }
@@ -87,7 +87,8 @@ namespace Mafesoft.PlainTextReport
         /// <summary>
         /// Column's value format provider. When it is not set, the values are formatted with
         /// <see cref="ColumnFormat"/> in the culture of the report (<see cref="PlainTextReportOptions.Culture"/>);
-        /// read from here, without a report, the culture is the invariant one.
+        /// read from here, without a report, the culture is the invariant one. When it is a <see cref="CultureInfo"/>
+        /// and the column has a format, the format is applied in that culture; any other provider is used as it is.
         /// </summary>
         public IFormatProvider ColumnFormatProvider
         {
@@ -110,6 +111,11 @@ namespace Mafesoft.PlainTextReport
         {
             if (_FormatProvider != null)
             {
+                // a culture with a format: the format is applied in that culture
+                if (!string.IsNullOrEmpty(ColumnFormat) && _FormatProvider is CultureInfo providerCulture)
+                {
+                    return new DefaultFormatProvider(ColumnFormat, providerCulture);
+                }
                 return _FormatProvider;
             }
             if (string.IsNullOrEmpty(ColumnFormat))

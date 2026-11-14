@@ -11,11 +11,11 @@ var report = new PlainTextReport<Model>(options =>
     options.Width = 80;
 
     // Columns
-    options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => style.Width = 20);
-    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
-    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
-    options.Columns.AddColumn(m => m.Enabled, style => style.Alignment = PlainTextReportAlignment.Center, new CustomBooleanConverter());
+    options.Columns.Add(m => m.Id);
+    options.Columns.Add(m => m.Name, column => column.Width(20));
+    options.Columns.Add(m => m.Price, column => column.Format("N2"));
+    options.Columns.Add(m => m.CreatedOn, column => column.Format("dd/MM/yyyy"));
+    options.Columns.Add(m => m.Enabled, column => column.Align(PlainTextReportAlignment.Center).Converter(new CustomBooleanConverter()));
 });
 
 var models = Enumerable.Range(1, 20)
@@ -56,10 +56,10 @@ var pagedReport = new PlainTextReport<Model>(options =>
     options.Page.Footer.Right = "{page}/{pages}";
     options.Page.Footer.ShowSeparator = true;
 
-    options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => style.Width = "100%"); // takes all the free space
-    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
-    options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
+    options.Columns.Add(m => m.Id);
+    options.Columns.Add(m => m.Name, column => column.Width("100%")); // takes all the free space
+    options.Columns.Add(m => m.Price, column => column.Format("N2"));
+    options.Columns.Add(m => m.CreatedOn, column => column.Format("dd/MM/yyyy"));
 });
 
 var pages = pagedReport
@@ -80,9 +80,9 @@ var multiLineReport = new PlainTextReport<Model>(options =>
     options.ShowColumnSeparator = true;
     options.MultiLineRows = true;
 
-    options.Columns.AddColumn(m => m.Id, style => { });
-    options.Columns.AddColumn(m => m.Name, style => style.Width = 16);
-    options.Columns.AddColumn(m => m.Price, style => { }, columnFormat: "N2");
+    options.Columns.Add(m => m.Id);
+    options.Columns.Add(m => m.Name, column => column.Width(16));
+    options.Columns.Add(m => m.Price, column => column.Format("N2"));
 });
 
 Console.WriteLine(multiLineReport
