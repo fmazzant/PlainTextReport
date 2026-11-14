@@ -39,11 +39,11 @@ namespace PlainTextReportBenchmark
                 ShowColumnSeparator = true,
                 Width = 80,
             };
-            options.Columns.AddColumn(m => m.Id, style => { });
-            options.Columns.AddColumn(m => m.Name, style => { });
-            options.Columns.AddColumn(m => m.Price, style => { });
-            options.Columns.AddColumn(m => m.CreatedOn, style => { }, columnFormat: "dd/MM/yyyy");
-            options.Columns.AddColumn(m => m.Enabled, style => { });
+            options.Columns.Add(m => m.Id);
+            options.Columns.Add(m => m.Name);
+            options.Columns.Add(m => m.Price);
+            options.Columns.Add(m => m.CreatedOn, column => column.Format("dd/MM/yyyy"));
+            options.Columns.Add(m => m.Enabled);
             return options;
         }
     }
